@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // POST /api/vocab/import — Import words from CSV text
-// Expected CSV format: hanzi,pinyin,meaning,category,hskLevel
+// Supports two formats:
+//   Format A: hanzi,pinyin,meaning,category,hskLevel
+//   Format B: Pinyin,Characters,English,Category,Mastery,Source (auto-detected)
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get('content-type') || '';
 
@@ -23,17 +25,33 @@ export async function POST(request: NextRequest) {
   const results = [];
   const errors = [];
 
-  // Detect if first line is a header
+  // Detect format from header
   const firstLine = lines[0].toLowerCase();
-  const startIndex = firstLine.includes('hanzi') || firstLine.includes('pinyin') ? 1 : 0;
+  const isFormatB = firstLine.includes('pinyin') && firstLine.includes('characters');
+  const hasHeader = firstLine.includes('hanzi') || firstLine.includes('pinyin') || firstLine.includes('characters');
+  const startIndex = hasHeader ? 1 : 0;
 
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
-    // Handle quoted fields
     const fields = parseCSVLine(line);
-    const [hanzi, pinyin, meaning, category, hskLevel] = fields;
+
+    let hanzi: string, pinyin: string, meaning: string, category: string | undefined;
+
+    if (isFormatB) {
+      // Format B: Pinyin,Characters,English,Category,Mastery,Source
+      pinyin = fields[0];
+      hanzi = fields[1];
+      meaning = fields[2];
+      category = fields[3];
+    } else {
+      // Format A: hanzi,pinyin,meaning,category,hskLevel
+      hanzi = fields[0];
+      pinyin = fields[1];
+      meaning = fields[2];
+      category = fields[3];
+    }
 
     if (!hanzi || !pinyin || !meaning) {
       errors.push({ line: i + 1, raw: line, error: 'Missing required fields' });
@@ -47,7 +65,6 @@ export async function POST(request: NextRequest) {
           pinyin: pinyin.trim(),
           meaning: meaning.trim(),
           category: category?.trim() || null,
-          hskLevel: hskLevel ? parseInt(hskLevel) : null,
         },
       });
       results.push(created);
