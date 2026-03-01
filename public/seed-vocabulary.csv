@@ -1,0 +1,89 @@
+Pinyin,Characters,English,Category,Mastery,Source
+yī,一,"one; 1",Numbers & Measure Words,,app
+liǎng,两,"(used with measure words) two; 2",Numbers & Measure Words,,app
+sān,三,"three; 3",Numbers & Measure Words,,app
+sì,四,"four; 4",Numbers & Measure Words,,app
+wǔ,五,"five; 5",Numbers & Measure Words,,app
+jǐ,几,used to ask quantities less than ten: how many,Numbers & Measure Words,,app
+gè,个,"common measure word for people, objects, etc.",Numbers & Measure Words,,app
+kuài,块,"piece; chunk",Numbers & Measure Words,,app
+bēi,杯,"(measure word) cup; glass",Numbers & Measure Words,,app
+píng,瓶,bottle (measure word),Numbers & Measure Words,,app
+liù,六,"six; 6",Numbers & Measure Words,,claude
+qī,七,"seven; 7",Numbers & Measure Words,,claude
+bā,八,"eight; 8",Numbers & Measure Words,,claude
+jiǔ,九,"nine; 9",Numbers & Measure Words,,claude
+shí,十,"ten; 10",Numbers & Measure Words,,claude
+zhāng,张,"(measure word for flat objects, paper, tables)",Numbers & Measure Words,,claude
+běn,本,"(measure word for books, magazines)",Numbers & Measure Words,,claude
+tiáo,条,"(measure word for long, thin objects)",Numbers & Measure Words,,claude
+dàngāo,蛋糕,cake,Food & Drinks,,app
+miànbāo,面包,bread,Food & Drinks,,app
+shuǐ,水,water,Food & Drinks,,app
+niúnǎi,牛奶,milk,Food & Drinks,,app
+kāfēi,咖啡,coffee,Food & Drinks,,app
+chá,茶,tea,Food & Drinks,,claude
+mǐfàn,米饭,rice (cooked),Food & Drinks,,claude
+miàntiāo,面条,noodles,Food & Drinks,,claude
+shuǐguǒ,水果,fruit,Food & Drinks,,claude
+píngguǒ,苹果,apple,Food & Drinks,,claude
+jīdàn,鸡蛋,egg,Food & Drinks,,claude
+ròu,肉,meat,Food & Drinks,,claude
+rén,人,"person; human being",People & Relationships,,app
+lǎoshī,老师,teacher,People & Relationships,,app
+xuésheng,学生,student,People & Relationships,,app
+lǎobǎn,老板,"boss; proprietor",People & Relationships,,app
+péngyou,朋友,friend,People & Relationships,,app
+nánpéngyou,男朋友,boyfriend,People & Relationships,,app
+nǚpéngyou,女朋友,girlfriend,People & Relationships,,app
+tóngshì,同事,"colleague; co-worker",People & Relationships,,app
+tóngxué,同学,"classmate; schoolmate; fellow student",People & Relationships,,app
+shìyǒu,室友,roommate,People & Relationships,,app
+línjū,邻居,neighbor,People & Relationships,,app
+wǎngyǒu,网友,"online friend; internet user",People & Relationships,,app
+bàba,爸爸,"father; dad",People & Relationships,,claude
+māma,妈妈,"mother; mom",People & Relationships,,claude
+gēge,哥哥,older brother,People & Relationships,,claude
+jiějie,姐姐,older sister,People & Relationships,,claude
+dìdi,弟弟,younger brother,People & Relationships,,claude
+mèimei,妹妹,younger sister,People & Relationships,,claude
+jiārén,家人,family member,People & Relationships,,claude
+háizi,孩子,child,People & Relationships,,claude
+wǒ,我,"I; me",Pronouns & Basic Grammar,,app
+zhè,这,this,Pronouns & Basic Grammar,,app
+nà,那,that,Pronouns & Basic Grammar,,app
+shéi,谁,"who; whom",Pronouns & Basic Grammar,,app
+men,们,plural marker for pronouns or some nouns,Pronouns & Basic Grammar,,app
+nǐ,你,you (singular),Pronouns & Basic Grammar,,claude
+tā,他,he; him,Pronouns & Basic Grammar,,claude
+tā,她,she; her,Pronouns & Basic Grammar,,claude
+wǒmen,我们,we; us,Pronouns & Basic Grammar,,claude
+nǐmen,你们,you (plural),Pronouns & Basic Grammar,,claude
+tāmen,他们/她们,they; them,Pronouns & Basic Grammar,,claude
+shénme,什么,what,Pronouns & Basic Grammar,,claude
+nǎr,哪儿,where,Pronouns & Basic Grammar,,claude
+shì,是,to be,Verbs & Common Words,,app
+yào,要,"to want; to desire; to ask for",Verbs & Common Words,,app
+jiào,叫,"to be called; (one's name) is",Verbs & Common Words,,app
+nǐhǎo,你好,"hello; hi",Verbs & Common Words,,app
+yǒu,有,to have; there is/are,Verbs & Common Words,,claude
+chī,吃,to eat,Verbs & Common Words,,claude
+hē,喝,to drink,Verbs & Common Words,,claude
+kàn,看,to look; to see; to watch,Verbs & Common Words,,claude
+tīng,听,to listen; to hear,Verbs & Common Words,,claude
+shuō,说,to say; to speak,Verbs & Common Words,,claude
+zuò,做,to do; to make,Verbs & Common Words,,claude
+qù,去,to go,Verbs & Common Words,,claude
+lái,来,to come,Verbs & Common Words,,claude
+xièxie,谢谢,thank you,Verbs & Common Words,,claude
+zàijiàn,再见,goodbye,Verbs & Common Words,,claude
+Měiguó,美国,"USA; America; the United States",Places,,app
+Zhōngguó,中国,China,Places,,app
+Fǎguó,法国,France,Places,,app
+Yīngguó,英国,"England; United Kingdom",Places,,claude
+Déguó,德国,Germany,Places,,claude
+Rìběn,日本,Japan,Places,,claude
+Jiānádà,加拿大,Canada,Places,,claude
+Àodàlìyà,澳大利亚,Australia,Places,,claude
+Běijīng,北京,Beijing,Places,,claude
+Shànghǎi,上海,Shanghai,Places,,claude

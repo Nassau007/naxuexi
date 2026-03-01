@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Core vocabulary ───────────────────────────────────────────
+
+model Word {
+  id          Int      @id @default(autoincrement())
+  hanzi       String   @unique
+  pinyin      String
+  meaning     String   // English meaning
+  category    String?  // e.g. "food", "verb", "number", "place"
+  hskLevel    Int?     // HSK level if applicable
+  components  String?  // Hanzi radical/component breakdown (JSON string)
+  mnemonic    String?  // Memory aid
+  audioUrl    String?  // Path or URL to pronunciation audio
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Learning state (spaced repetition)
+  // status: "NEW" | "LEARNING" | "LEARNED"
+  status      String   @default("NEW")
+  easeFactor  Float    @default(2.5)  // SM-2 ease factor
+  interval    Int      @default(0)    // Days until next review
+  nextReview  DateTime @default(now())
+  reviewCount Int      @default(0)
+  correctCount Int     @default(0)
+
+  // Relations
+  reviews        ReviewLog[]
+  dailyPractices DailyPracticeWord[]
+
+  @@index([status])
+  @@index([nextReview])
+  @@index([category])
+}
+
+// ─── Review tracking ───────────────────────────────────────────
+
+model ReviewLog {
+  id        Int      @id @default(autoincrement())
+  wordId    Int
+  word      Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  // module: "FLASHCARD" | "PRONUNCIATION_READ" | "PRONUNCIATION_LISTEN" | "TRANSLATE" | "DAILY_HANZI"
+  module    String
+  // result: "CORRECT" | "WRONG" | "PARTIAL"
+  result    String
+  timestamp DateTime @default(now())
+
+  @@index([wordId])
+  @@index([timestamp])
+  @@index([module])
+}
+
+// ─── Daily hanzi practice ──────────────────────────────────────
+
+model DailyPractice {
+  id          Int       @id @default(autoincrement())
+  date        DateTime  @unique // One per day
+  sentVia     String    @default("telegram") // "telegram" | "web"
+  completed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  words DailyPracticeWord[]
+}
+
+model DailyPracticeWord {
+  id              Int           @id @default(autoincrement())
+  dailyPracticeId Int
+  dailyPractice   DailyPractice @relation(fields: [dailyPracticeId], references: [id], onDelete: Cascade)
+  wordId          Int
+  word            Word          @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  practiced       Boolean       @default(false)
+
+  @@unique([dailyPracticeId, wordId])
+}
+
+// ─── Settings ──────────────────────────────────────────────────
+
+model Setting {
+  key   String @id
+  value String
+}
