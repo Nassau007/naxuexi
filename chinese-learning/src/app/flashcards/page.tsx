@@ -19,34 +19,67 @@ type SessionStats = {
   total: number;
 };
 
+type Direction = {
+  key: string;
+  label: string;
+  description: string;
+  icon: string;
+};
+
+const DIRECTIONS: Direction[] = [
+  { key: 'hanzi_to_meaning', label: '字 → EN', description: 'See hanzi, guess meaning', icon: '字' },
+  { key: 'meaning_to_hanzi', label: 'EN → 字', description: 'See meaning, recall hanzi', icon: 'A' },
+  { key: 'hanzi_to_pinyin', label: '字 → PY', description: 'See hanzi, guess pinyin', icon: '拼' },
+  { key: 'meaning_to_pinyin', label: 'EN → PY', description: 'See meaning, guess pinyin', icon: '音' },
+  { key: 'pinyin_to_meaning', label: 'PY → EN', description: 'See pinyin, guess meaning', icon: 'P' },
+];
+
+type Phase = 'setup' | 'session' | 'done';
+
 export default function FlashcardsPage() {
+  // Setup state
+  const [phase, setPhase] = useState<Phase>('setup');
+  const [selectedModes, setSelectedModes] = useState<string[]>(['hanzi_to_meaning']);
+  const [cardCount, setCardCount] = useState(20);
+
+  // Session state
   const [cards, setCards] = useState<Card[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [totalDue, setTotalDue] = useState(0);
-  const [sessionDone, setSessionDone] = useState(false);
   const [stats, setStats] = useState<SessionStats>({ correct: 0, wrong: 0, partial: 0, total: 0 });
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchCards = useCallback(async () => {
+  const toggleMode = (key: string) => {
+    setSelectedModes(prev => {
+      if (prev.includes(key)) {
+        if (prev.length === 1) return prev; // Must keep at least one
+        return prev.filter(m => m !== key);
+      }
+      return [...prev, key];
+    });
+  };
+
+  const selectAllModes = () => {
+    setSelectedModes(DIRECTIONS.map(d => d.key));
+  };
+
+  const startSession = async () => {
     setLoading(true);
-    const res = await fetch('/api/flashcards?limit=20');
+    const mode = selectedModes.join(',');
+    const res = await fetch(`/api/flashcards?limit=${cardCount}&mode=${mode}`);
     const data = await res.json();
     setCards(data.cards);
     setTotalDue(data.totalDue);
     setCurrentIndex(0);
     setFlipped(false);
     setShowHint(false);
-    setSessionDone(false);
     setStats({ correct: 0, wrong: 0, partial: 0, total: 0 });
     setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchCards();
-  }, [fetchCards]);
+    setPhase(data.cards.length > 0 ? 'session' : 'setup');
+  };
 
   const currentCard = cards[currentIndex];
 
@@ -76,15 +109,15 @@ export default function FlashcardsPage() {
       setFlipped(false);
       setShowHint(false);
     } else {
-      setSessionDone(true);
+      setPhase('done');
     }
     setSubmitting(false);
   }, [currentCard, submitting, currentIndex, cards.length]);
 
   useEffect(() => {
+    if (phase !== 'session') return;
     const onKey = (e: KeyboardEvent) => {
-      if (sessionDone || loading || !currentCard) return;
-
+      if (!currentCard) return;
       if (!flipped) {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
@@ -99,38 +132,103 @@ export default function FlashcardsPage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [flipped, sessionDone, loading, currentCard, handleGrade]);
+  }, [phase, flipped, currentCard, handleGrade]);
 
-  const directionLabels: Record<string, string> = {
-    hanzi_to_meaning: '字 → EN',
-    meaning_to_hanzi: 'EN → 字',
-    hanzi_to_pinyin: '字 → PY',
-    meaning_to_pinyin: 'EN → PY',
-    pinyin_to_meaning: 'PY → EN',
-  };
+  const directionLabels: Record<string, string> = Object.fromEntries(
+    DIRECTIONS.map(d => [d.key, d.label])
+  );
 
-  if (loading) {
+  // ─── SETUP SCREEN ─────────────────────────────────────────
+
+  if (phase === 'setup') {
     return (
-      <div className="p-8 max-w-2xl mx-auto text-center">
-        <p className="text-ink-400 mt-20">Loading cards...</p>
-      </div>
-    );
-  }
-
-  if (cards.length === 0) {
-    return (
-      <div className="p-8 max-w-2xl mx-auto text-center">
-        <div className="mt-20">
-          <p className="hanzi-display text-5xl text-ink-300 mb-4">空</p>
-          <h2 className="text-xl font-display font-bold text-ink-800 mb-2">No cards to review</h2>
-          <p className="text-ink-500 mb-6">Add vocabulary first, then come back to practice.</p>
-          <a href="/vocab" className="btn-primary">Go to Vocabulary</a>
+      <div className="p-8 max-w-2xl mx-auto">
+        <div className="mb-8">
+          <h2 className="text-2xl font-display font-bold text-ink-900">
+            卡片 <span className="text-ink-400 font-body text-base font-normal">Flashcards</span>
+          </h2>
+          <p className="text-ink-500 mt-1">Choose your practice mode and start reviewing.</p>
         </div>
+
+        {/* Mode selection */}
+        <div className="card p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-ink-800">Direction</h3>
+            <button onClick={selectAllModes} className="text-xs text-vermillion-600 hover:text-vermillion-700">
+              Select all
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            {DIRECTIONS.map(dir => {
+              const selected = selectedModes.includes(dir.key);
+              return (
+                <button
+                  key={dir.key}
+                  onClick={() => toggleMode(dir.key)}
+                  className={`flex items-center gap-3 p-3 rounded-lg text-left transition-all
+                    ${selected
+                      ? 'bg-vermillion-50 border-2 border-vermillion-400'
+                      : 'bg-ink-50 border-2 border-transparent hover:border-ink-200'
+                    }`}
+                >
+                  <span className={`hanzi-display text-xl w-8 text-center
+                    ${selected ? 'text-vermillion-600' : 'text-ink-400'}`}>
+                    {dir.icon}
+                  </span>
+                  <div className="flex-1">
+                    <span className={`text-sm font-medium ${selected ? 'text-vermillion-700' : 'text-ink-700'}`}>
+                      {dir.label}
+                    </span>
+                    <span className="text-xs text-ink-400 ml-2">{dir.description}</span>
+                  </div>
+                  <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center
+                    ${selected
+                      ? 'border-vermillion-500 bg-vermillion-500'
+                      : 'border-ink-300'
+                    }`}>
+                    {selected && <span className="text-white text-xs">✓</span>}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Card count */}
+        <div className="card p-5 mb-6">
+          <h3 className="font-semibold text-ink-800 mb-3">Cards per session</h3>
+          <div className="flex gap-2">
+            {[10, 20, 30, 50].map(n => (
+              <button
+                key={n}
+                onClick={() => setCardCount(n)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
+                  ${cardCount === n
+                    ? 'bg-vermillion-600 text-white'
+                    : 'bg-ink-100 text-ink-600 hover:bg-ink-200'
+                  }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Start button */}
+        <button
+          onClick={startSession}
+          disabled={loading || selectedModes.length === 0}
+          className="btn-primary w-full py-3 text-base"
+        >
+          {loading ? 'Loading...' : `Start Review (${cardCount} cards)`}
+        </button>
       </div>
     );
   }
 
-  if (sessionDone) {
+  // ─── SESSION DONE ──────────────────────────────────────────
+
+  if (phase === 'done') {
     const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
     return (
       <div className="p-8 max-w-2xl mx-auto text-center">
@@ -157,27 +255,41 @@ export default function FlashcardsPage() {
           </div>
 
           <div className="flex justify-center gap-3">
-            <button onClick={fetchCards} className="btn-primary">
+            <button onClick={startSession} className="btn-primary">
               {totalDue > stats.total ? `Continue (${totalDue - stats.total} more)` : 'Review Again'}
             </button>
-            <a href="/" className="btn-secondary">Dashboard</a>
+            <button onClick={() => setPhase('setup')} className="btn-secondary">
+              Change Mode
+            </button>
+            <a href="/" className="btn-ghost">Dashboard</a>
           </div>
         </div>
       </div>
     );
   }
 
+  // ─── ACTIVE SESSION ────────────────────────────────────────
+
   return (
     <div className="p-8 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-display font-bold text-ink-900">
-          卡片 <span className="text-ink-400 font-body text-base font-normal">Flashcards</span>
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-display font-bold text-ink-900">
+            卡片
+          </h2>
+          <button
+            onClick={() => setPhase('setup')}
+            className="text-xs text-ink-400 hover:text-ink-600 underline"
+          >
+            Change mode
+          </button>
+        </div>
         <div className="flex items-center gap-4 text-sm text-ink-500">
           <span>{currentIndex + 1} / {cards.length}</span>
           <span className="text-ink-300">·</span>
-          <span>{totalDue} due</span>
+          <span className="text-jade-600">{stats.correct}✓</span>
+          <span className="text-vermillion-600">{stats.wrong}✗</span>
         </div>
       </div>
 
@@ -196,18 +308,18 @@ export default function FlashcardsPage() {
           cursor-pointer select-none transition-all duration-200
           ${!flipped ? 'hover:shadow-md' : ''}`}
       >
-        {/* Direction badge */}
-        <span className="badge bg-ink-100 text-ink-500 mb-4">
-          {directionLabels[currentCard.direction] || currentCard.direction}
-        </span>
-
-        {/* Status badge */}
-        <span className={`badge mb-4 ${
-          currentCard.status === 'NEW' ? 'badge-new' :
-          currentCard.status === 'LEARNING' ? 'badge-learning' : 'badge-learned'
-        }`}>
-          {currentCard.status.toLowerCase()}
-        </span>
+        {/* Direction + status badges */}
+        <div className="flex gap-2 mb-4">
+          <span className="badge bg-ink-100 text-ink-500">
+            {directionLabels[currentCard.direction] || currentCard.direction}
+          </span>
+          <span className={`badge ${
+            currentCard.status === 'NEW' ? 'badge-new' :
+            currentCard.status === 'LEARNING' ? 'badge-learning' : 'badge-learned'
+          }`}>
+            {currentCard.status.toLowerCase()}
+          </span>
+        </div>
 
         {/* Prompt */}
         <div className="text-center mb-6">
@@ -239,7 +351,7 @@ export default function FlashcardsPage() {
 
         {/* Answer */}
         {flipped && (
-          <div className="mt-4 pt-4 border-t border-ink-100 w-full text-center">
+          <div className="mt-4 pt-4 border-t border-ink-100 w-full text-center animate-fadeIn">
             <p className={
               currentCard.direction.endsWith('hanzi') ? 'hanzi-medium text-ink-900' :
               currentCard.direction.endsWith('pinyin') ? 'text-2xl text-ink-700' :
@@ -258,7 +370,7 @@ export default function FlashcardsPage() {
 
       {/* Grading buttons */}
       {flipped && (
-        <div className="flex gap-3 mt-6 justify-center">
+        <div className="flex gap-3 mt-6 justify-center animate-fadeIn">
           <button
             onClick={() => handleGrade('WRONG')}
             disabled={submitting}

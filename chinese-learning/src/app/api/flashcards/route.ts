@@ -3,10 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { calculateSM2, resultToQuality } from '@/lib/spaced-repetition';
 
 // GET /api/flashcards — Get cards due for review
-// Query params: limit (default 20), mode (default "mixed")
+// Query params: limit (default 20), mode (comma-separated directions or "mixed")
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const limit = parseInt(searchParams.get('limit') || '20');
+  const mode = searchParams.get('mode') || 'mixed';
 
   // Get words due for review (next review date <= now)
   const dueWords = await prisma.word.findMany({
@@ -14,8 +15,8 @@ export async function GET(request: NextRequest) {
       nextReview: { lte: new Date() },
     },
     orderBy: [
-      { status: 'asc' }, // NEW first, then LEARNING, then LEARNED
-      { nextReview: 'asc' }, // Most overdue first
+      { status: 'asc' },
+      { nextReview: 'asc' },
     ],
     take: limit,
   });
@@ -33,14 +34,22 @@ export async function GET(request: NextRequest) {
     dueWords.push(...newWords);
   }
 
-  // Generate flashcard items with random directions
-  const directions = [
+  // Determine which directions to use
+  const allDirections = [
     'hanzi_to_meaning',
     'meaning_to_hanzi',
     'hanzi_to_pinyin',
     'meaning_to_pinyin',
     'pinyin_to_meaning',
   ];
+
+  const directions = mode === 'mixed'
+    ? allDirections
+    : mode.split(',').filter(d => allDirections.includes(d));
+
+  if (directions.length === 0) {
+    return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });
+  }
 
   const cards = dueWords.map(word => {
     const direction = directions[Math.floor(Math.random() * directions.length)];
