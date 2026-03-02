@@ -14,7 +14,7 @@ const CHAT_ID = process.env.TELEGRAM_CHAT_ID!;
 export async function sendTelegramMessage(
   text: string,
   options: Record<string, unknown> = {}
-): Promise<void> {
+): Promise<Record<string, unknown>> {
   const res = await fetch(
     `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
     {
@@ -28,10 +28,12 @@ export async function sendTelegramMessage(
     }
   );
 
+  const data = await res.json();
+
   if (!res.ok) {
-    const error = await res.text();
-    console.error('[Telegram] sendMessage failed:', error);
-    // We throw so the caller can handle/log — doesn't affect other features
-    throw new Error(`Telegram API error: ${error}`);
+    console.error('[Telegram] sendMessage failed:', data);
+    throw new Error(`Telegram API error: ${JSON.stringify(data)}`);
   }
+
+  return data;
 }
