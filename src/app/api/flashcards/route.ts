@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         id: { notIn: dueWords.map(w => w.id) },
       },
       take: limit - dueWords.length,
-      orderBy: { createdAt: 'asc' },
+      orderBy: { id: 'asc' },
     });
     dueWords.push(...newWords);
   }
