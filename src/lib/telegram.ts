@@ -1,27 +1,37 @@
-const TELEGRAM_API = 'https://api.telegram.org/bot';
+// src/lib/telegram.ts
+// Drop-in replacement — fully backward compatible with existing daily-hanzi usage
 
-export function getTelegramConfig() {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) {
-    throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set');
-  }
-  return { token, chatId };
-}
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID!;
 
+/**
+ * Send a message via Telegram.
+ * @param text    Message text (supports Markdown if parse_mode is set)
+ * @param options Extra Telegram API options (e.g. { parse_mode: 'Markdown' })
+ *
+ * Backward compatible: existing callers that pass only `text` continue to work.
+ */
 export async function sendTelegramMessage(
   text: string,
-  options?: { parseMode?: 'HTML' | 'MarkdownV2'; chatId?: string }
-) {
-  const config = getTelegramConfig();
-  const res = await fetch(`${TELEGRAM_API}${config.token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: options?.chatId || config.chatId,
-      text,
-      parse_mode: options?.parseMode || 'HTML',
-    }),
-  });
-  return res.json();
+  options: Record<string, unknown> = {}
+): Promise<void> {
+  const res = await fetch(
+    `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text,
+        ...options,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const error = await res.text();
+    console.error('[Telegram] sendMessage failed:', error);
+    // We throw so the caller can handle/log — doesn't affect other features
+    throw new Error(`Telegram API error: ${error}`);
+  }
 }

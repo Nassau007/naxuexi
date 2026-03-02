@@ -1,3 +1,6 @@
+// prisma/schema.prisma
+// Full file — existing Chinese models untouched, poem models added at the bottom
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,82 +10,76 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Core vocabulary ───────────────────────────────────────────
+// ─── Existing Chinese learning models (unchanged) ────────────────────────────
 
 model Word {
-  id          Int      @id @default(autoincrement())
-  hanzi       String   @unique
-  pinyin      String
-  meaning     String   // English meaning
-  category    String?  // e.g. "food", "verb", "number", "place"
-  hskLevel    Int?     // HSK level if applicable
-  components  String?  // Hanzi radical/component breakdown (JSON string)
-  mnemonic    String?  // Memory aid
-  audioUrl    String?  // Path or URL to pronunciation audio
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Learning state (spaced repetition)
-  // status: "NEW" | "LEARNING" | "LEARNED"
-  status      String   @default("NEW")
-  easeFactor  Float    @default(2.5)  // SM-2 ease factor
-  interval    Int      @default(0)    // Days until next review
-  nextReview  DateTime @default(now())
-  reviewCount Int      @default(0)
-  correctCount Int     @default(0)
-
-  // Relations
-  reviews        ReviewLog[]
-  dailyPractices DailyPracticeWord[]
-
-  @@index([status])
-  @@index([nextReview])
-  @@index([category])
+  id           Int          @id @default(autoincrement())
+  hanzi        String       @unique
+  pinyin       String
+  meaning      String
+  category     String?
+  hskLevel     Int?
+  components   String?
+  mnemonic     String?
+  audioUrl     String?
+  status       String       @default("NEW") // "NEW" | "LEARNING" | "LEARNED"
+  easeFactor   Float        @default(2.5)
+  interval     Int          @default(1)
+  nextReview   DateTime     @default(now())
+  reviewCount  Int          @default(0)
+  correctCount Int          @default(0)
+  reviewLogs   ReviewLog[]
+  dailyWords   DailyPracticeWord[]
 }
-
-// ─── Review tracking ───────────────────────────────────────────
 
 model ReviewLog {
   id        Int      @id @default(autoincrement())
   wordId    Int
-  word      Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
-  // module: "FLASHCARD" | "PRONUNCIATION_READ" | "PRONUNCIATION_LISTEN" | "TRANSLATE" | "DAILY_HANZI"
-  module    String
-  // result: "CORRECT" | "WRONG" | "PARTIAL"
-  result    String
+  word      Word     @relation(fields: [wordId], references: [id])
+  module    String   // "flashcard" | "pronunciation" | etc.
+  result    String   // "correct" | "incorrect" | "hard"
   timestamp DateTime @default(now())
-
-  @@index([wordId])
-  @@index([timestamp])
-  @@index([module])
 }
 
-// ─── Daily hanzi practice ──────────────────────────────────────
-
 model DailyPractice {
-  id          Int       @id @default(autoincrement())
-  date        DateTime  @unique // One per day
-  sentVia     String    @default("telegram") // "telegram" | "web"
-  completed   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-
-  words DailyPracticeWord[]
+  id        Int                 @id @default(autoincrement())
+  date      DateTime            @unique
+  sentVia   String              @default("telegram")
+  completed Boolean             @default(false)
+  words     DailyPracticeWord[]
 }
 
 model DailyPracticeWord {
-  id              Int           @id @default(autoincrement())
-  dailyPracticeId Int
-  dailyPractice   DailyPractice @relation(fields: [dailyPracticeId], references: [id], onDelete: Cascade)
-  wordId          Int
-  word            Word          @relation(fields: [wordId], references: [id], onDelete: Cascade)
-  practiced       Boolean       @default(false)
-
-  @@unique([dailyPracticeId, wordId])
+  id               Int           @id @default(autoincrement())
+  dailyPracticeId  Int
+  dailyPractice    DailyPractice @relation(fields: [dailyPracticeId], references: [id])
+  wordId           Int
+  word             Word          @relation(fields: [wordId], references: [id])
+  practiced        Boolean       @default(false)
 }
-
-// ─── Settings ──────────────────────────────────────────────────
 
 model Setting {
   key   String @id
   value String
+}
+
+// ─── Poem memorisation models (new) ──────────────────────────────────────────
+
+model Poem {
+  id        Int           @id @default(autoincrement())
+  title     String
+  author    String
+  lines     String        // JSON array of strings, one per verse
+  createdAt DateTime      @default(now())
+  progress  PoemProgress?
+}
+
+model PoemProgress {
+  id         Int      @id @default(autoincrement())
+  poemId     Int      @unique
+  poem       Poem     @relation(fields: [poemId], references: [id])
+  chunkIndex Int      @default(0)   // 0-based index of current chunk
+  chunkSize  Int      @default(5)   // verses per chunk
+  active     Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
 }

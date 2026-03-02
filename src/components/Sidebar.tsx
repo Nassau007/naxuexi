@@ -9,6 +9,7 @@ const navItems = [
   { href: '/flashcards', label: 'Flashcards', icon: '卡', description: 'Review cards' },
   { href: '/pronunciation', label: 'Pronunciation', icon: '音', description: 'Listen & speak' },
   { href: '/translate', label: 'Translate', icon: '译', description: 'Practice sentences' },
+  { href: '/poems', label: 'Poèmes', icon: '📜' },
 ];
 
 export function Sidebar() {
