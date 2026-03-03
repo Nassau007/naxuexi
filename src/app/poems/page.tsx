@@ -83,7 +83,7 @@ export default function PoemsPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-vermillion text-white px-4 py-2 rounded-lg font-medium hover:opacity-90"
+          className="bg-ink text-white px-4 py-2 rounded-lg font-medium hover:opacity-90"
         >
           + Ajouter
         </button>
