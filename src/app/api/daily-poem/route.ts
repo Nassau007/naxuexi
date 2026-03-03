@@ -29,18 +29,29 @@ export async function GET(req: Request) {
   const chunk = lines.slice(start, end);
 
   // Build message
-  const chunkText = chunk.join('\n');
-  const fullPoem = lines.join('\n');
+const chunkText = chunk.join('\n');
+const fullPoem = lines.join('\n');
 
-  const message =
-    `📖 *Chunk du jour* (lignes ${start + 1}–${end})\n\n` +
-    `${chunkText}\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `📜 *${progress.poem.title}* — ${progress.poem.author}\n\n` +
-    `${fullPoem}\n\n` +
-    `_Envoie /next quand tu l'as mémorisé_ 🎯`;
+const now = new Date();
+const today = now.toLocaleDateString('fr-FR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+const time = now.toLocaleTimeString('fr-FR', {
+  hour: '2-digit',
+  minute: '2-digit',
+});
 
-  await sendTelegramMessage(message, { parse_mode: 'Markdown' });
+const message =
+  `📖 Chunk du jour — ${today} à ${time} (lignes ${start + 1}–${end})\n\n` +
+  `${chunkText}\n\n` +
+  `━━━━━━━━━━━━━━━━━━━━\n` +
+  `📜 ${progress.poem.title} — ${progress.poem.author}\n\n` +
+  `${fullPoem}\n\n` +
+  `Envoie /quiz pour tester ta mémoire 🎯`;
+
+await sendTelegramMessage(message);
 
   return NextResponse.json({
     ok: true,
