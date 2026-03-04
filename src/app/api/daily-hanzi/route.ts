@@ -86,7 +86,7 @@ async function sendDailyHanzi(request: NextRequest) {
 
   // Send via Telegram
   try {
-    const result = await sendTelegramMessage(message);
+     const result = await sendTelegramMessage(message, { parse_mode: 'HTML' });
 
     if (!result.ok) {
       return NextResponse.json({
