@@ -88,16 +88,15 @@ export async function POST(req: Request) {
     }
 
     const lines: string[] = JSON.parse(progress.poem.lines);
-    const start = progress.chunkIndex * progress.chunkSize;
-    const end = Math.min(start + progress.chunkSize, lines.length);
-    const chunkLines = lines.slice(start, end);
+    const end = Math.min((progress.chunkIndex + 1) * progress.chunkSize, lines.length);
+    const cumulativeLines = lines.slice(0, end);
 
     quizSession.set(chatId, true);
 
     await sendTelegramMessage(
       `🧠 *Quiz — ${progress.poem.title}*\n` +
-      `Lignes ${start + 1}–${end} (${chunkLines.length} vers)\n\n` +
-      `Tape le chunk de mémoire, un vers par ligne, puis envoie 👇`,
+      `Lignes 1–${end} (${cumulativeLines.length} vers au total)\n\n` +
+      `Tape tous les vers de mémoire, un par ligne, puis envoie 👇`,
       { parse_mode: 'Markdown' }
     );
 
@@ -119,9 +118,8 @@ export async function POST(req: Request) {
     }
 
     const lines: string[] = JSON.parse(progress.poem.lines);
-    const start = progress.chunkIndex * progress.chunkSize;
-    const end = Math.min(start + progress.chunkSize, lines.length);
-    const refLines = lines.slice(start, end);
+    const end = Math.min((progress.chunkIndex + 1) * progress.chunkSize, lines.length);
+    const refLines = lines.slice(0, end);
     const userLines = text
       .split('\n')
       .map((l: string) => l.trim())
@@ -144,9 +142,9 @@ export async function POST(req: Request) {
     }
 
     if (passed) {
-      resultMsg += `\nEnvoie /next pour passer au chunk suivant 🎯`;
+      resultMsg += `\nEnvoie /next pour débloquer les ${progress.chunkSize} vers suivants 🎯`;
     } else {
-      resultMsg += `\nRéessaie avec /quiz ou retente demain.`;
+      resultMsg += `\nRéessaie avec /quiz — tu dois réciter les ${refLines.length} vers depuis le début.`;
     }
 
     await sendTelegramMessage(resultMsg, { parse_mode: 'Markdown' });
@@ -185,10 +183,10 @@ export async function POST(req: Request) {
       });
 
       const start = nextIndex * progress.chunkSize;
-      const end = Math.min(start + progress.chunkSize, lines.length);
+      const end = Math.min((nextIndex + 1) * progress.chunkSize, lines.length);
 
       await sendTelegramMessage(
-        `✅ Chunk suivant débloqué !\nDemain tu recevras les lignes *${start + 1}–${end}* de *${progress.poem.title}*.`,
+        `✅ Chunk suivant débloqué !\nDemain tu recevras les lignes *1–${end}* de *${progress.poem.title}* (${end - start} nouvelles lignes ajoutées).`,
         { parse_mode: 'Markdown' }
       );
     }
@@ -210,12 +208,11 @@ export async function POST(req: Request) {
 
     const lines: string[] = JSON.parse(progress.poem.lines);
     const totalChunks = Math.ceil(lines.length / progress.chunkSize);
-    const start = progress.chunkIndex * progress.chunkSize;
-    const end = Math.min(start + progress.chunkSize, lines.length);
+    const end = Math.min((progress.chunkIndex + 1) * progress.chunkSize, lines.length);
 
     await sendTelegramMessage(
       `📖 *${progress.poem.title}* — ${progress.poem.author}\n` +
-      `Chunk actuel : lignes ${start + 1}–${end} (${progress.chunkIndex + 1}/${totalChunks})`,
+      `Chunk actuel : lignes 1–${end} (chunk ${progress.chunkIndex + 1}/${totalChunks})`,
       { parse_mode: 'Markdown' }
     );
 

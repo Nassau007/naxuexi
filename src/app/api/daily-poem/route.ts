@@ -24,38 +24,41 @@ export async function GET(req: Request) {
   const lines: string[] = JSON.parse(progress.poem.lines);
   const { chunkIndex, chunkSize } = progress;
 
-  const start = chunkIndex * chunkSize;
-  const end = Math.min(start + chunkSize, lines.length);
-  const chunk = lines.slice(start, end);
+  // Cumulative: always start from line 0, up to end of current chunk
+  const end = Math.min((chunkIndex + 1) * chunkSize, lines.length);
+  const newChunkStart = chunkIndex * chunkSize; // the newly added lines
+  const cumulativeLines = lines.slice(0, end);
+  const newLines = lines.slice(newChunkStart, end);
 
   // Build message
-const chunkText = chunk.join('\n');
-const fullPoem = lines.join('\n');
+  const now = new Date();
+  const today = now.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+  const time = now.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
-const now = new Date();
-const today = now.toLocaleDateString('fr-FR', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-});
-const time = now.toLocaleTimeString('fr-FR', {
-  hour: '2-digit',
-  minute: '2-digit',
-});
+  // Mark new lines vs previously learned lines
+  const cumulativeText = cumulativeLines
+    .map((line, i) => (i >= newChunkStart ? `▶ ${line}` : `  ${line}`))
+    .join('\n');
 
-const message =
-  `📖 Chunk du jour — ${today} à ${time} (lignes ${start + 1}–${end})\n\n` +
-  `${chunkText}\n\n` +
-  `━━━━━━━━━━━━━━━━━━━━\n` +
-  `📜 ${progress.poem.title} — ${progress.poem.author}\n\n` +
-  `${fullPoem}\n\n` +
-  `Envoie /quiz pour tester ta mémoire 🎯`;
+  const message =
+    `📖 Récap du jour — ${today} à ${time}\n` +
+    `Lignes 1–${end} (${newLines.length} nouvelles, ${newChunkStart} déjà apprises)\n\n` +
+    `${cumulativeText}\n\n` +
+    `📜 ${progress.poem.title} — ${progress.poem.author}\n\n` +
+    `Envoie /quiz pour tester ta mémoire 🎯`;
 
 await sendTelegramMessage(message);
 
   return NextResponse.json({
     ok: true,
     poem: progress.poem.title,
-    chunk: `lines ${start + 1}–${end}`,
+    chunk: `lines 1–${end}`,
   });
 }
