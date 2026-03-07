@@ -70,9 +70,12 @@ const quizSession = new Map<number, boolean>();
 const translateSession = new Map<number, number>();
 
 const DIRECTION_LABELS: Record<string, string> = {
-  EN_TO_ZH: '🇬🇧 → 🇨🇳 English to Chinese',
-  FR_TO_ZH: '🇫🇷 → 🇨🇳 French to Chinese',
-  ZH_TO_EN: '🇨🇳 → 🇬🇧 Chinese to English',
+  HANZI_TO_EN: '汉字 → 🇬🇧 Hanzi to English',
+  HANZI_TO_FR: '汉字 → 🇫🇷 Hanzi to French',
+  PY_TO_EN:   '拼音 → 🇬🇧 Pinyin to English',
+  PY_TO_FR:   '拼音 → 🇫🇷 Pinyin to French',
+  EN_TO_PY:   '🇬🇧 → 拼音 English to Pinyin',
+  FR_TO_PY:   '🇫🇷 → 拼音 French to Pinyin',
 };
 
 // --- Main handler ---
@@ -246,7 +249,7 @@ export async function POST(req: Request) {
 
     // Pick 3, trying to vary directions
     const picked: typeof available = [];
-    const directions = ['EN_TO_ZH', 'FR_TO_ZH', 'ZH_TO_EN'];
+    const directions = ['HANZI_TO_EN', 'HANZI_TO_FR', 'PY_TO_EN', 'PY_TO_FR', 'EN_TO_PY', 'FR_TO_PY'];
     for (const dir of directions) {
       const match = available.find(s => s.direction === dir && !picked.includes(s));
       if (match) picked.push(match);

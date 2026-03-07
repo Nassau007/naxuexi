@@ -33,16 +33,22 @@ interface Stats {
 }
 
 const DIRECTION_LABELS: Record<string, string> = {
-  EN_TO_ZH: '🇬🇧 → 🇨🇳',
-  FR_TO_ZH: '🇫🇷 → 🇨🇳',
-  ZH_TO_EN: '🇨🇳 → 🇬🇧',
+  HANZI_TO_EN: '汉字 → 🇬🇧',
+  HANZI_TO_FR: '汉字 → 🇫🇷',
+  PY_TO_EN:   '拼音 → 🇬🇧',
+  PY_TO_FR:   '拼音 → 🇫🇷',
+  EN_TO_PY:   '🇬🇧 → 拼音',
+  FR_TO_PY:   '🇫🇷 → 拼音',
 };
 
 const DIRECTION_FILTER_LABELS: Record<string, string> = {
-  '': 'All',
-  EN_TO_ZH: '🇬🇧 → 🇨🇳',
-  FR_TO_ZH: '🇫🇷 → 🇨🇳',
-  ZH_TO_EN: '🇨🇳 → 🇬🇧',
+  '':           'All directions',
+  HANZI_TO_EN: '汉字 → 🇬🇧',
+  HANZI_TO_FR: '汉字 → 🇫🇷',
+  PY_TO_EN:   '拼音 → 🇬🇧',
+  PY_TO_FR:   '拼音 → 🇫🇷',
+  EN_TO_PY:   '🇬🇧 → 拼音',
+  FR_TO_PY:   '🇫🇷 → 拼音',
 };
 
 type Tab = 'history' | 'bank';

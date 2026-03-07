@@ -7,8 +7,17 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-const DIRECTIONS = ['EN_TO_ZH', 'FR_TO_ZH', 'ZH_TO_EN'] as const;
-const BATCH_SIZE = 100;
+// 6 directions, ~17 sentences each = 102 ≈ 100
+const DIRECTIONS = [
+  { key: 'HANZI_TO_EN',  perCount: 17, desc: 'prompt is Chinese hanzi, reference is English' },
+  { key: 'HANZI_TO_FR',  perCount: 17, desc: 'prompt is Chinese hanzi, reference is French' },
+  { key: 'PY_TO_EN',     perCount: 17, desc: 'prompt is pinyin only (no hanzi), reference is English' },
+  { key: 'PY_TO_FR',     perCount: 17, desc: 'prompt is pinyin only (no hanzi), reference is French' },
+  { key: 'EN_TO_PY',     perCount: 16, desc: 'prompt is English, reference is pinyin only (no hanzi)' },
+  { key: 'FR_TO_PY',     perCount: 16, desc: 'prompt is French, reference is pinyin only (no hanzi)' },
+] as const;
+
+const BATCH_SIZE = DIRECTIONS.reduce((s, d) => s + d.perCount, 0);
 
 export async function GET(req: Request) {
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
@@ -27,32 +36,47 @@ export async function GET(req: Request) {
   }
 
   const wordList = words.map(w => `${w.hanzi} (${w.pinyin} — ${w.meaning})`).join('\n');
-  const perDirection = Math.floor(BATCH_SIZE / DIRECTIONS.length);
 
-  const prompt = `You are a Chinese language teacher generating translation exercises.
+  const directionInstructions = DIRECTIONS.map(d =>
+    `- ${d.perCount} sentences direction "${d.key}": ${d.desc}`
+  ).join('\n');
 
-Here are the student's known words:
+  const prompt = `You are a Chinese language teacher generating translation exercises for a student learning Chinese.
+
+The student knows these words:
 ${wordList}
 
-Generate exactly ${BATCH_SIZE} translation sentences (${perDirection} per direction):
-- ${perDirection} sentences: English → Chinese (direction: EN_TO_ZH)
-- ${perDirection} sentences: French → Chinese (direction: FR_TO_ZH)  
-- ${perDirection} sentences: Chinese → English (direction: ZH_TO_EN)
+Generate exactly ${BATCH_SIZE} sentences split across 6 directions:
+${directionInstructions}
 
 Rules:
 - ONLY use vocabulary from the word list above
-- Keep sentences short (4-8 words)
+- Keep sentences short (3-7 words)
 - Vary difficulty from simple to more complex
 - Make sentences natural and practical
-- For ZH_TO_EN: prompt is Chinese, reference is English
-- For EN_TO_ZH and FR_TO_ZH: prompt is the source language, reference is Chinese (hanzi + pinyin)
+- For HANZI_TO_EN and HANZI_TO_FR: prompt must be Chinese hanzi characters
+- For PY_TO_EN and PY_TO_FR: prompt must be pinyin only (e.g. "wǒ yǒu péngyou"), no hanzi
+- For EN_TO_PY and FR_TO_PY: reference must be pinyin only (e.g. "wǒ yǒu péngyou"), no hanzi
+- French sentences should be natural French, not word-for-word translations
 
-Respond ONLY with a valid JSON array, no markdown, no explanation:
+Respond ONLY with a valid JSON array, no markdown, no preamble:
 [
   {
-    "direction": "EN_TO_ZH",
+    "direction": "HANZI_TO_EN",
+    "prompt": "我有朋友",
+    "reference": "I have a friend",
+    "usedWords": ["我", "有", "朋友"]
+  },
+  {
+    "direction": "PY_TO_FR",
+    "prompt": "wǒ yǒu péngyou",
+    "reference": "J'ai un ami",
+    "usedWords": ["我", "有", "朋友"]
+  },
+  {
+    "direction": "EN_TO_PY",
     "prompt": "I have a friend",
-    "reference": "我有朋友 (wǒ yǒu péngyou)",
+    "reference": "wǒ yǒu péngyou",
     "usedWords": ["我", "有", "朋友"]
   },
   ...
@@ -66,7 +90,7 @@ Respond ONLY with a valid JSON array, no markdown, no explanation:
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001', // cheapest model, perfect for structured generation
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 8000,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -90,7 +114,6 @@ Respond ONLY with a valid JSON array, no markdown, no explanation:
     return NextResponse.json({ error: 'Failed to parse Claude response' }, { status: 500 });
   }
 
-  // Bulk insert
   let inserted = 0;
   for (const s of sentences) {
     if (!s.direction || !s.prompt || !s.reference) continue;
@@ -106,9 +129,5 @@ Respond ONLY with a valid JSON array, no markdown, no explanation:
     inserted++;
   }
 
-  return NextResponse.json({
-    ok: true,
-    inserted,
-    wordsUsed: words.length,
-  });
+  return NextResponse.json({ ok: true, inserted, wordsUsed: words.length });
 }
