@@ -40,14 +40,14 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 # SQLite database lives on persistent volume
-RUN mkdir -p /data && chown nextjs:nodejs /data
 ENV DATABASE_URL="file:/data/hanziflow.db"
 
 # Entrypoint: run migrations then start
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
-USER nextjs
+# Run as root so we can write to the Railway-mounted volume
+# (Railway mounts volumes as root, nextjs user can't write to them)
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
