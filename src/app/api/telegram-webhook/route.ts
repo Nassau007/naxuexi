@@ -390,3 +390,4 @@ Respond ONLY with JSON (no markdown):
   }
 
   return NextResponse.json({ ok: true });
+}
