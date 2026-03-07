@@ -142,7 +142,7 @@ export default function FlashcardsPage() {
 
   if (phase === 'setup') {
     return (
-      <div className="p-8 max-w-2xl mx-auto">
+      <div className="p-4 md:p-8 max-w-2xl mx-auto">
         <div className="mb-8">
           <h2 className="text-2xl font-display font-bold text-ink-900">
             卡片 <span className="text-ink-400 font-body text-base font-normal">Flashcards</span>
@@ -231,7 +231,7 @@ export default function FlashcardsPage() {
   if (phase === 'done') {
     const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
     return (
-      <div className="p-8 max-w-2xl mx-auto text-center">
+      <div className="p-4 md:p-8 max-w-2xl mx-auto text-center">
         <div className="mt-16">
           <p className="text-5xl mb-4">
             {accuracy >= 80 ? '🎉' : accuracy >= 50 ? '💪' : '📚'}
@@ -271,9 +271,9 @@ export default function FlashcardsPage() {
   // ─── ACTIVE SESSION ────────────────────────────────────────
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-4 md:p-8 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 md:mb-6">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-display font-bold text-ink-900">
             卡片
@@ -304,7 +304,7 @@ export default function FlashcardsPage() {
       {/* Card */}
       <div
         onClick={() => !flipped && setFlipped(true)}
-        className={`card p-8 min-h-[320px] flex flex-col items-center justify-center
+        className={`card p-6 md:p-8 min-h-[260px] md:min-h-[320px] flex flex-col items-center justify-center
           cursor-pointer select-none transition-all duration-200
           ${!flipped ? 'hover:shadow-md' : ''}`}
       >
@@ -370,42 +370,45 @@ export default function FlashcardsPage() {
 
       {/* Grading buttons */}
       {flipped && (
-        <div className="flex gap-3 mt-6 justify-center animate-fadeIn">
+        <div className="flex gap-2 md:gap-3 mt-4 md:mt-6 justify-center animate-fadeIn">
           <button
             onClick={() => handleGrade('WRONG')}
             disabled={submitting}
-            className="flex-1 max-w-[140px] py-3 px-4 rounded-lg font-medium text-sm
+            className="flex-1 py-3 px-2 md:px-4 rounded-lg font-medium text-sm
               bg-vermillion-50 text-vermillion-700 border border-vermillion-200
               hover:bg-vermillion-100 transition-all active:scale-[0.98]"
           >
             <span className="block text-lg mb-0.5">✗</span>
-            Wrong (1)
+            <span className="hidden md:inline">Wrong (1)</span>
+            <span className="md:hidden">Wrong</span>
           </button>
           <button
             onClick={() => handleGrade('PARTIAL')}
             disabled={submitting}
-            className="flex-1 max-w-[140px] py-3 px-4 rounded-lg font-medium text-sm
+            className="flex-1 py-3 px-2 md:px-4 rounded-lg font-medium text-sm
               bg-amber-50 text-amber-700 border border-amber-200
               hover:bg-amber-100 transition-all active:scale-[0.98]"
           >
             <span className="block text-lg mb-0.5">~</span>
-            Partial (2)
+            <span className="hidden md:inline">Partial (2)</span>
+            <span className="md:hidden">Partial</span>
           </button>
           <button
             onClick={() => handleGrade('CORRECT')}
             disabled={submitting}
-            className="flex-1 max-w-[140px] py-3 px-4 rounded-lg font-medium text-sm
+            className="flex-1 py-3 px-2 md:px-4 rounded-lg font-medium text-sm
               bg-jade-50 text-jade-700 border border-jade-200
               hover:bg-jade-100 transition-all active:scale-[0.98]"
           >
             <span className="block text-lg mb-0.5">✓</span>
-            Correct (3)
+            <span className="hidden md:inline">Correct (3)</span>
+            <span className="md:hidden">Correct</span>
           </button>
         </div>
       )}
 
-      {/* Shortcuts */}
-      <div className="mt-8 text-center text-xs text-ink-300">
+      {/* Shortcuts - desktop only */}
+      <div className="hidden md:block mt-8 text-center text-xs text-ink-300">
         Space: flip · 1: wrong · 2: partial · 3: correct · H: hint
       </div>
     </div>

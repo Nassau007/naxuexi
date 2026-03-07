@@ -78,19 +78,19 @@ export default function PoemsPage() {
     <div className="max-w-3xl mx-auto py-10 px-4">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-ink">📜 Poèmes</h1>
+          <h1 className="text-3xl font-bold text-ink-900">📜 Poèmes</h1>
           <p className="text-gray-500 mt-1">Mémorise un poème, 5 lignes par jour.</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-ink text-white px-4 py-2 rounded-lg font-medium hover:opacity-90"
+          className="bg-ink-900 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90"
         >
           + Ajouter
         </button>
       </div>
 
       {message && (
-        <div className="mb-4 p-3 bg-jade/10 border border-jade/30 rounded-lg text-jade text-sm">
+        <div className="mb-4 p-3 bg-jade-50 border border-jade-200 rounded-lg text-jade-600 text-sm">
           {message}
           <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => setMessage('')}>✕</button>
         </div>
@@ -98,7 +98,7 @@ export default function PoemsPage() {
 
       {showForm && (
         <div className="mb-8 p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
-          <h2 className="text-lg font-semibold text-ink mb-4">Nouveau poème</h2>
+          <h2 className="text-lg font-semibold text-ink-900 mb-4">Nouveau poème</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Titre</label>
@@ -134,7 +134,7 @@ export default function PoemsPage() {
               <button
                 onClick={handleSubmit}
                 disabled={saving}
-                className="bg-ink text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                className="bg-ink-900 text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
               >
                 {saving ? 'Enregistrement...' : 'Enregistrer'}
               </button>
@@ -168,14 +168,14 @@ export default function PoemsPage() {
             return (
               <div
                 key={poem.id}
-                className={`p-5 rounded-xl border ${isActive ? 'border-jade bg-jade/5' : 'border-gray-200 bg-white'} shadow-sm`}
+                className={`p-5 rounded-xl border ${isActive ? 'border-jade-500 bg-jade-50' : 'border-gray-200 bg-white'} shadow-sm`}
               >
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-ink">{poem.title}</h3>
+                      <h3 className="font-semibold text-ink-900">{poem.title}</h3>
                       {isActive && (
-                        <span className="text-xs bg-jade text-white px-2 py-0.5 rounded-full">Actif</span>
+                        <span className="text-xs bg-jade-500 text-white px-2 py-0.5 rounded-full">Actif</span>
                       )}
                     </div>
                     <p className="text-sm text-gray-500">{poem.author}</p>
@@ -188,7 +188,7 @@ export default function PoemsPage() {
                     {!isActive && (
                       <button
                         onClick={() => handleSetActive(poem.id)}
-                        className="text-xs bg-jade text-white px-3 py-1.5 rounded-lg hover:opacity-90"
+                        className="text-xs bg-jade-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90"
                       >
                         Activer
                       </button>

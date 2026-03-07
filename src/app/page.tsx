@@ -32,17 +32,17 @@ export default async function Dashboard() {
   const stats = await getStats();
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 md:p-8 max-w-5xl">
       {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-display font-bold text-ink-900">
-          你好 <span className="text-ink-400 font-body text-lg font-normal">nǐ hǎo</span>
+      <div className="mb-6 md:mb-8">
+        <h2 className="text-2xl md:text-3xl font-display font-bold text-ink-900">
+          你好 <span className="text-ink-400 font-body text-base md:text-lg font-normal">nǐ hǎo</span>
         </h2>
-        <p className="text-ink-500 mt-1">Here&apos;s where your Chinese stands today.</p>
+        <p className="text-ink-500 mt-1 text-sm md:text-base">Here&apos;s where your Chinese stands today.</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         <div className="stat-card">
           <span className="stat-value text-ink-900">{stats.total}</span>
           <span className="stat-label">Total words</span>
@@ -62,9 +62,9 @@ export default async function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <a href="/flashcards" className="card-hover p-5 group">
-          <div className="flex items-center gap-3 mb-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+        <a href="/flashcards" className="card-hover p-4 md:p-5 group">
+          <div className="flex items-center gap-3 mb-1 md:mb-2">
             <span className="hanzi-display text-2xl text-vermillion-500">卡</span>
             <h3 className="font-semibold text-ink-800">Flashcards</h3>
           </div>
@@ -75,16 +75,16 @@ export default async function Dashboard() {
           </p>
         </a>
 
-        <a href="/pronunciation" className="card-hover p-5 group">
-          <div className="flex items-center gap-3 mb-2">
+        <a href="/pronunciation" className="card-hover p-4 md:p-5 group">
+          <div className="flex items-center gap-3 mb-1 md:mb-2">
             <span className="hanzi-display text-2xl text-jade-500">音</span>
             <h3 className="font-semibold text-ink-800">Pronunciation</h3>
           </div>
           <p className="text-sm text-ink-500">Practice reading &amp; listening</p>
         </a>
 
-        <a href="/translate" className="card-hover p-5 group">
-          <div className="flex items-center gap-3 mb-2">
+        <a href="/translate" className="card-hover p-4 md:p-5 group">
+          <div className="flex items-center gap-3 mb-1 md:mb-2">
             <span className="hanzi-display text-2xl text-amber-500">译</span>
             <h3 className="font-semibold text-ink-800">Translate</h3>
           </div>
@@ -93,9 +93,9 @@ export default async function Dashboard() {
       </div>
 
       {/* Today's activity */}
-      <div className="card p-5 mb-4">
+      <div className="card p-4 md:p-5 mb-4">
         <h3 className="font-semibold text-ink-800 mb-3">Today</h3>
-        <div className="flex items-center gap-6 text-sm text-ink-500">
+        <div className="flex items-center gap-4 md:gap-6 text-sm text-ink-500">
           <span>{stats.reviewsToday} reviews completed</span>
           <span>{stats.new} new words waiting</span>
         </div>
@@ -109,7 +109,7 @@ export default async function Dashboard() {
 
 function DailyHanziCard() {
   return (
-    <div className="card p-5">
+    <div className="card p-4 md:p-5">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-ink-800 mb-1">Daily Hanzi Practice</h3>

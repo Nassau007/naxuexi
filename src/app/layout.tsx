@@ -12,7 +12,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Sidebar />
-        <main className="ml-64 min-h-screen">
+        {/* Desktop: offset by sidebar. Mobile: no left margin, pad bottom for tab bar */}
+        <main className="md:ml-64 min-h-screen pb-20 md:pb-0">
           {children}
         </main>
       </body>
