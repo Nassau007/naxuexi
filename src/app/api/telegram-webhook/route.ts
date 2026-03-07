@@ -65,6 +65,16 @@ function compareLines(userLines: string[], refLines: string[]): {
 // Railway restarts clear it — that's fine, quiz just resets
 const quizSession = new Map<number, boolean>();
 
+// --- In-memory translate session state ---
+// key = chat_id, value = current sentence id being answered
+const translateSession = new Map<number, number>();
+
+const DIRECTION_LABELS: Record<string, string> = {
+  EN_TO_ZH: '🇬🇧 → 🇨🇳 English to Chinese',
+  FR_TO_ZH: '🇫🇷 → 🇨🇳 French to Chinese',
+  ZH_TO_EN: '🇨🇳 → 🇬🇧 Chinese to English',
+};
+
 // --- Main handler ---
 
 export async function POST(req: Request) {
@@ -219,5 +229,164 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  // /translate — start a translation session (3 sentences)
+  if (text === '/translate') {
+    // Pick 3 unused sentences randomly across directions
+    const available = await prisma.translationSentence.findMany({
+      where: { used: false },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (available.length === 0) {
+      await sendTelegramMessage(
+        '📭 No translation exercises available yet.\nThe weekly batch generates every Sunday — check back soon!',
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    // Pick 3, trying to vary directions
+    const picked: typeof available = [];
+    const directions = ['EN_TO_ZH', 'FR_TO_ZH', 'ZH_TO_EN'];
+    for (const dir of directions) {
+      const match = available.find(s => s.direction === dir && !picked.includes(s));
+      if (match) picked.push(match);
+      if (picked.length === 3) break;
+    }
+    // Fill up to 3 if not enough variety
+    for (const s of available) {
+      if (picked.length >= 3) break;
+      if (!picked.includes(s)) picked.push(s);
+    }
+
+    // Store session: queue of sentence ids
+    const ids = picked.map(s => s.id);
+    await prisma.setting.upsert({
+      where: { key: `translateQueue_${chatId}` },
+      update: { value: JSON.stringify(ids) },
+      create: { key: `translateQueue_${chatId}`, value: JSON.stringify(ids) },
+    });
+
+    // Send first sentence
+    const first = picked[0];
+    translateSession.set(chatId, first.id);
+
+    await sendTelegramMessage(
+      `🈳 *Translation Exercise* (1/3)\n\n` +
+      `${DIRECTION_LABELS[first.direction]}\n\n` +
+      `*${first.prompt}*\n\n` +
+      `Reply with your translation 👇`,
+      { parse_mode: 'Markdown' }
+    );
+
+    return NextResponse.json({ ok: true });
+  }
+
+  // Free text — translation answer
+  if (translateSession.has(chatId) && !text.startsWith('/')) {
+    const sentenceId = translateSession.get(chatId)!;
+    translateSession.delete(chatId);
+
+    const sentence = await prisma.translationSentence.findUnique({ where: { id: sentenceId } });
+    if (!sentence) {
+      await sendTelegramMessage('Session expirée, envoie /translate pour recommencer.');
+      return NextResponse.json({ ok: true });
+    }
+
+    // Evaluate with Claude
+    const evalPrompt = `You are evaluating a Chinese language translation exercise.
+
+Direction: ${sentence.direction}
+Original: ${sentence.prompt}
+Reference answer: ${sentence.reference}
+Student answer: ${text}
+
+Evaluate the student's answer. Be flexible — accept synonyms, different word order if meaning is preserved, minor pinyin errors.
+
+Respond ONLY with JSON (no markdown):
+{
+  "score": 0.85,
+  "passed": true,
+  "feedback": "Brief encouraging feedback in the same language as the prompt (French if FR_TO_ZH, English otherwise). Max 2 sentences. Mention what was good or what to fix."
+}`;
+
+    const evalResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: evalPrompt }],
+      }),
+    });
+
+    let score = 0;
+    let passed = false;
+    let feedback = '';
+
+    if (evalResponse.ok) {
+      const evalData = await evalResponse.json();
+      const raw = evalData.content?.[0]?.text || '';
+      try {
+        const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+        score = parsed.score ?? 0;
+        passed = parsed.passed ?? false;
+        feedback = parsed.feedback ?? '';
+      } catch {
+        feedback = 'Could not evaluate — check the reference answer below.';
+      }
+    }
+
+    // Save attempt
+    await prisma.translationAttempt.create({
+      data: {
+        sentenceId: sentence.id,
+        userAnswer: text,
+        score,
+        feedback,
+        passed,
+      },
+    });
+
+    // Mark sentence as used
+    await prisma.translationSentence.update({
+      where: { id: sentence.id },
+      data: { used: true },
+    });
+
+    // Get queue to determine next sentence
+    const queueSetting = await prisma.setting.findUnique({
+      where: { key: `translateQueue_${chatId}` },
+    });
+    const queue: number[] = queueSetting ? JSON.parse(queueSetting.value) : [];
+    const currentIndex = queue.indexOf(sentenceId);
+    const nextId = queue[currentIndex + 1];
+
+    const resultEmoji = passed ? '✅' : '❌';
+    let resultMsg =
+      `${resultEmoji} *${Math.round(score * 100)}%*\n\n` +
+      `${feedback}\n\n` +
+      `Reference: _${sentence.reference}_`;
+
+    if (nextId) {
+      const next = await prisma.translationSentence.findUnique({ where: { id: nextId } });
+      if (next) {
+        translateSession.set(chatId, nextId);
+        const position = currentIndex + 2; // 1-based
+        resultMsg += `\n\n━━━━━━━━━━━━━━━━━━━━\n🈳 *Sentence ${position}/3*\n\n${DIRECTION_LABELS[next.direction]}\n\n*${next.prompt}*\n\nReply with your translation 👇`;
+      }
+    } else {
+      // Session complete
+      resultMsg += `\n\n━━━━━━━━━━━━━━━━━━━━\n🎯 Session complete! Send /translate for more.`;
+      // Clean up queue
+      await prisma.setting.deleteMany({ where: { key: `translateQueue_${chatId}` } });
+    }
+
+    await sendTelegramMessage(resultMsg, { parse_mode: 'Markdown' });
+    return NextResponse.json({ ok: true });
+  }
+
   return NextResponse.json({ ok: true });
-}

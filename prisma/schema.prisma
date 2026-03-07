@@ -63,7 +63,29 @@ model Setting {
   value String
 }
 
-// ─── Poem memorisation models (new) ──────────────────────────────────────────
+// ─── Translation exercise models ─────────────────────────────────────────────
+
+model TranslationSentence {
+  id          Int                  @id @default(autoincrement())
+  direction   String               // "EN_TO_ZH" | "FR_TO_ZH" | "ZH_TO_EN"
+  prompt      String               // sentence to translate
+  reference   String               // expected translation
+  usedWords   String               // JSON array of hanzi used
+  used        Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  attempts    TranslationAttempt[]
+}
+
+model TranslationAttempt {
+  id         Int                  @id @default(autoincrement())
+  sentenceId Int
+  sentence   TranslationSentence  @relation(fields: [sentenceId], references: [id])
+  userAnswer String
+  score      Float                // 0.0 - 1.0
+  feedback   String               // Claude's feedback
+  passed     Boolean
+  createdAt  DateTime             @default(now())
+}
 
 model Poem {
   id        Int           @id @default(autoincrement())
