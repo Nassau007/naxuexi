@@ -169,6 +169,7 @@ export default function VocabPage() {
 
 function WordCard({ word, onUpdate }: { word: WordData; onUpdate: () => void }) {
   const [deleting, setDeleting] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const handleDelete = async () => {
     if (!confirm(`Delete "${word.hanzi}"?`)) return;
@@ -177,11 +178,22 @@ function WordCard({ word, onUpdate }: { word: WordData; onUpdate: () => void }) 
     onUpdate();
   };
 
-  const statusBadge = {
-    NEW: 'badge-new',
-    LEARNING: 'badge-learning',
-    LEARNED: 'badge-learned',
-  }[word.status];
+  const handleStatusChange = async (newStatus: string) => {
+    setUpdatingStatus(true);
+    await fetch(`/api/vocab/${word.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    setUpdatingStatus(false);
+    onUpdate();
+  };
+
+  const statusColors: Record<string, string> = {
+    NEW: 'bg-ink-100 text-ink-600 border-ink-200',
+    LEARNING: 'bg-amber-100 text-amber-700 border-amber-200',
+    LEARNED: 'bg-jade-100 text-jade-700 border-jade-200',
+  };
 
   return (
     <div className="card p-3 flex items-center gap-3">
@@ -189,7 +201,17 @@ function WordCard({ word, onUpdate }: { word: WordData; onUpdate: () => void }) 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium text-ink-700">{word.pinyin}</span>
-          <span className={statusBadge}>{word.status.toLowerCase()}</span>
+          <select
+            value={word.status}
+            disabled={updatingStatus}
+            onChange={e => handleStatusChange(e.target.value)}
+            className={`text-xs font-medium rounded-full px-2 py-0.5 border cursor-pointer
+              focus:outline-none disabled:opacity-50 ${statusColors[word.status]}`}
+          >
+            <option value="NEW">new</option>
+            <option value="LEARNING">learning</option>
+            <option value="LEARNED">learned</option>
+          </select>
         </div>
         <p className="text-sm text-ink-600 truncate">{word.meaning}</p>
         {word.category && <p className="text-xs text-ink-400">{word.category}</p>}
@@ -364,6 +386,7 @@ function ImportCSV({ onClose, onImported }: { onClose: () => void; onImported: (
 
 function WordRow({ word, onUpdate }: { word: WordData; onUpdate: () => void }) {
   const [deleting, setDeleting] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const handleDelete = async () => {
     if (!confirm(`Delete "${word.hanzi}"?`)) return;
@@ -372,11 +395,22 @@ function WordRow({ word, onUpdate }: { word: WordData; onUpdate: () => void }) {
     onUpdate();
   };
 
-  const statusBadge = {
-    NEW: 'badge-new',
-    LEARNING: 'badge-learning',
-    LEARNED: 'badge-learned',
-  }[word.status];
+  const handleStatusChange = async (newStatus: string) => {
+    setUpdatingStatus(true);
+    await fetch(`/api/vocab/${word.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    setUpdatingStatus(false);
+    onUpdate();
+  };
+
+  const statusColors: Record<string, string> = {
+    NEW: 'bg-ink-100 text-ink-600 border-ink-200',
+    LEARNING: 'bg-amber-100 text-amber-700 border-amber-200',
+    LEARNED: 'bg-jade-100 text-jade-700 border-jade-200',
+  };
 
   return (
     <tr className="border-b border-ink-50 hover:bg-ink-50/50 transition-colors">
@@ -387,7 +421,18 @@ function WordRow({ word, onUpdate }: { word: WordData; onUpdate: () => void }) {
       <td className="px-4 py-3 text-sm">{word.meaning}</td>
       <td className="px-4 py-3 text-sm text-ink-500">{word.category || '—'}</td>
       <td className="px-4 py-3">
-        <span className={statusBadge}>{word.status.toLowerCase()}</span>
+        <select
+          value={word.status}
+          disabled={updatingStatus}
+          onChange={e => handleStatusChange(e.target.value)}
+          className={`text-xs font-medium rounded-full px-2 py-0.5 border cursor-pointer
+            focus:outline-none focus:ring-2 focus:ring-vermillion-500/30
+            disabled:opacity-50 ${statusColors[word.status]}`}
+        >
+          <option value="NEW">new</option>
+          <option value="LEARNING">learning</option>
+          <option value="LEARNED">learned</option>
+        </select>
       </td>
       <td className="px-4 py-3 text-sm text-ink-500">
         {word.reviewCount} ({word.correctCount}✓)
