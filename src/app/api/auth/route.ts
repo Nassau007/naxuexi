@@ -7,10 +7,11 @@ export async function POST(req: Request) {
   const { password } = await req.json();
 
   if (!password || password !== process.env.SITE_PASSWORD) {
-    return NextResponse.json({ error: 'Mot de passe incorrect' }, { status: 401 });
+    return NextResponse.json({ error: 'Mot de passe incorrect - Nass est-ce bien toi ?' }, { status: 401 });
   }
 
   const response = NextResponse.json({ ok: true });
+
 
   // Set cookie that expires in 14 days
   response.cookies.set('naxuexi_auth', password, {

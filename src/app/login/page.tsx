@@ -21,11 +21,10 @@ export default function LoginPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     });
-
     if (res.ok) {
-      router.push('/');
+      window.location.href = '/';
     } else {
-      setError('Mot de passe incorrect.');
+      setError('Mot de passe incorrect - Nass est-ce bien toi ?');
     }
     setLoading(false);
   }
