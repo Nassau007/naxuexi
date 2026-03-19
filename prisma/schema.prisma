@@ -1,0 +1,107 @@
+// prisma/schema.prisma
+// Full file — existing Chinese models untouched, poem models added at the bottom
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Existing Chinese learning models (unchanged) ────────────────────────────
+
+model Word {
+  id           Int          @id @default(autoincrement())
+  hanzi        String       @unique
+  pinyin       String
+  meaning      String
+  category     String?
+  hskLevel     Int?
+  components   String?
+  mnemonic     String?
+  audioUrl     String?
+  status       String       @default("NEW") // "NEW" | "LEARNING" | "LEARNED"
+  easeFactor   Float        @default(2.5)
+  interval     Int          @default(1)
+  nextReview   DateTime     @default(now())
+  reviewCount  Int          @default(0)
+  correctCount Int          @default(0)
+  reviewLogs   ReviewLog[]
+  dailyWords   DailyPracticeWord[]
+}
+
+model ReviewLog {
+  id        Int      @id @default(autoincrement())
+  wordId    Int
+  word      Word     @relation(fields: [wordId], references: [id])
+  module    String   // "flashcard" | "pronunciation" | etc.
+  result    String   // "correct" | "incorrect" | "hard"
+  timestamp DateTime @default(now())
+}
+
+model DailyPractice {
+  id        Int                 @id @default(autoincrement())
+  date      DateTime            @unique
+  sentVia   String              @default("telegram")
+  completed Boolean             @default(false)
+  words     DailyPracticeWord[]
+}
+
+model DailyPracticeWord {
+  id               Int           @id @default(autoincrement())
+  dailyPracticeId  Int
+  dailyPractice    DailyPractice @relation(fields: [dailyPracticeId], references: [id])
+  wordId           Int
+  word             Word          @relation(fields: [wordId], references: [id])
+  practiced        Boolean       @default(false)
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+// ─── Translation exercise models ─────────────────────────────────────────────
+
+model TranslationSentence {
+  id          Int                  @id @default(autoincrement())
+  direction   String               // "EN_TO_ZH" | "FR_TO_ZH" | "ZH_TO_EN"
+  prompt      String               // sentence to translate
+  reference   String               // expected translation
+  usedWords   String               // JSON array of hanzi used
+  used        Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  attempts    TranslationAttempt[]
+}
+
+model TranslationAttempt {
+  id         Int                  @id @default(autoincrement())
+  sentenceId Int
+  sentence   TranslationSentence  @relation(fields: [sentenceId], references: [id])
+  userAnswer String
+  score      Float                // 0.0 - 1.0
+  feedback   String               // Claude's feedback
+  passed     Boolean
+  createdAt  DateTime             @default(now())
+}
+
+model Poem {
+  id        Int           @id @default(autoincrement())
+  title     String
+  author    String
+  lines     String        // JSON array of strings, one per verse
+  createdAt DateTime      @default(now())
+  progress  PoemProgress?
+}
+
+model PoemProgress {
+  id         Int      @id @default(autoincrement())
+  poemId     Int      @unique
+  poem       Poem     @relation(fields: [poemId], references: [id])
+  chunkIndex Int      @default(0)   // 0-based index of current chunk
+  chunkSize  Int      @default(5)   // verses per chunk
+  active     Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+}
