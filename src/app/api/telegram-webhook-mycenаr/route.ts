@@ -224,20 +224,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true });
 }
-```
-
----
-
-## Railway env vars to add
-```
-TELEGRAM_BOT_TOKEN_FR=<MycenarBot token from BotFather>
-TELEGRAM_CHAT_ID_FR=<your chat ID — same value as TELEGRAM_CHAT_ID>
-```
-
----
-
-## After deploying — register MycenarBot's webhook
-
-Run this once in your browser (replace `YOUR_MYCENAR_TOKEN`):
-```
-https://api.telegram.org/botYOUR_MYCENAR_TOKEN/setWebhook?url=https://naxuexi.com/api/telegram-webhook-mycenar
