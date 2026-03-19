@@ -10,7 +10,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Find active poem
   const progress = await prisma.poemProgress.findFirst({
     where: { active: true },
     include: { poem: true },
@@ -23,13 +22,11 @@ export async function GET(req: Request) {
   const lines: string[] = JSON.parse(progress.poem.lines);
   const { chunkIndex, chunkSize } = progress;
 
-  // Cumulative: always start from line 0, up to end of current chunk
   const end = Math.min((chunkIndex + 1) * chunkSize, lines.length);
   const newChunkStart = chunkIndex * chunkSize;
   const cumulativeLines = lines.slice(0, end);
   const newLines = lines.slice(newChunkStart, end);
 
-  // Build message
   const now = new Date();
   const today = now.toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -54,11 +51,15 @@ export async function GET(req: Request) {
 
   const token = process.env.TELEGRAM_BOT_TOKEN_FR;
   const chatId = process.env.TELEGRAM_CHAT_ID_FR;
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+  console.log('[daily-poem] token:', token ? 'set' : 'MISSING');
+  console.log('[daily-poem] chatId:', chatId);
+  const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text: message }),
   });
+  const tgData = await tgRes.json();
+  console.log('[daily-poem] telegram response:', JSON.stringify(tgData));
 
   return NextResponse.json({
     ok: true,
