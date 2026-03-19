@@ -1,7 +1,6 @@
 // src/app/api/daily-poem/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { sendTelegramMessage } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +25,7 @@ export async function GET(req: Request) {
 
   // Cumulative: always start from line 0, up to end of current chunk
   const end = Math.min((chunkIndex + 1) * chunkSize, lines.length);
-  const newChunkStart = chunkIndex * chunkSize; // the newly added lines
+  const newChunkStart = chunkIndex * chunkSize;
   const cumulativeLines = lines.slice(0, end);
   const newLines = lines.slice(newChunkStart, end);
 
@@ -42,7 +41,6 @@ export async function GET(req: Request) {
     minute: '2-digit',
   });
 
-  // Mark new lines vs previously learned lines
   const cumulativeText = cumulativeLines
     .map((line, i) => (i >= newChunkStart ? `▶ ${line}` : `  ${line}`))
     .join('\n');
@@ -52,9 +50,15 @@ export async function GET(req: Request) {
     `Lignes 1–${end} (${newLines.length} nouvelles, ${newChunkStart} déjà apprises)\n\n` +
     `${cumulativeText}\n\n` +
     `📜 ${progress.poem.title} — ${progress.poem.author}\n\n` +
-    `Envoie /quiz pour tester ta mémoire 🎯`;
+    `Envoie /poem pour tester ta mémoire 🎯`;
 
-await sendTelegramMessage(message);
+  const token = process.env.TELEGRAM_BOT_TOKEN_FR;
+  const chatId = process.env.TELEGRAM_CHAT_ID_FR;
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text: message }),
+  });
 
   return NextResponse.json({
     ok: true,
