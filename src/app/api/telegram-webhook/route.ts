@@ -13,6 +13,28 @@ const translateSession = new Map<number, { queue: number[]; currentIndex: number
 // key = chatId, value = current pinyin word + running score
 const pinyinSession = new Map<number, { pinyin: string; hanzi: string; correct: number; total: number }>();
 
+// key = chatId, value = current hanzi word + running score
+const hanziSession = new Map<number, { pinyin: string; hanzi: string; correct: number; total: number }>();
+
+async function sendNextHanziWord(chatId: number, correct: number, total: number) {
+  const count = await prisma.word.count();
+  const skip = Math.floor(Math.random() * count);
+  const words = await prisma.word.findMany({ take: 1, skip });
+  const word = words[0];
+
+  hanziSession.set(chatId, {
+    pinyin: word.pinyin,
+    hanzi: word.hanzi,
+    correct,
+    total,
+  });
+
+  await sendTelegramMessage(
+    `🈳 <b>${word.meaning}</b>`,
+    { parse_mode: 'HTML' }
+  );
+}
+
 // --- Helper: pick a random word and send it ---
 async function sendNextPinyinWord(chatId: number, correct: number, total: number) {
   const count = await prisma.word.count();
@@ -68,6 +90,49 @@ export async function POST(req: Request) {
     );
 
     await sendNextPinyinWord(chatId, 0, 0);
+
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- /hanzis command — start continuous hanzi session ---
+  if (text === '/hanzis') {
+    const count = await prisma.word.count();
+    if (count === 0) {
+      await sendTelegramMessage('Aucun mot dans le vocabulaire.');
+      return NextResponse.json({ ok: true });
+    }
+
+    await sendTelegramMessage(
+      `🈳 <b>Hanzi Challenge</b>\n\nÉcris le(s) caractère(s) chinois correspondant(s).\nSend /hanzisfinish to end the session.\n`,
+      { parse_mode: 'HTML' }
+    );
+
+    await sendNextHanziWord(chatId, 0, 0);
+
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- /hanzisfinish command — end hanzi session ---
+  if (text === '/hanzisfinish') {
+    const session = hanziSession.get(chatId);
+
+    if (session) {
+      const { correct, total } = session;
+      hanziSession.delete(chatId);
+
+      if (total === 0) {
+        await sendTelegramMessage('Session terminée. Aucune réponse donnée.');
+      } else {
+        const pct = Math.round((correct / total) * 100);
+        await sendTelegramMessage(
+          `📊 <b>Session terminée</b>\n\n` +
+          `${correct}/${total} correct (${pct}%)`,
+          { parse_mode: 'HTML' }
+        );
+      }
+    } else {
+      await sendTelegramMessage('Aucune session hanzi en cours.');
+    }
 
     return NextResponse.json({ ok: true });
   }
@@ -169,6 +234,34 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   }
+
+// --- Hanzi answer ---
+  if (hanziSession.has(chatId) && !text.startsWith('/')) {
+    const session = hanziSession.get(chatId)!;
+    const userAnswer = text.trim();
+    const correctAnswer = session.hanzi.trim();
+    const isCorrect = userAnswer === correctAnswer;
+
+    const newCorrect = session.correct + (isCorrect ? 1 : 0);
+    const newTotal = session.total + 1;
+
+    if (isCorrect) {
+      await sendTelegramMessage(
+        `✅ <b>Correct !</b>  ${session.hanzi} (${session.pinyin})`,
+        { parse_mode: 'HTML' }
+      );
+    } else {
+      await sendTelegramMessage(
+        `❌ <b>${session.hanzi}</b> (${session.pinyin})`,
+        { parse_mode: 'HTML' }
+      );
+    }
+
+    await sendNextHanziWord(chatId, newCorrect, newTotal);
+
+    return NextResponse.json({ ok: true });
+  }
+  
 
   // --- Translation answer ---
   if (translateSession.has(chatId) && !text.startsWith('/')) {
