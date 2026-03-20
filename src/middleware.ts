@@ -10,6 +10,7 @@ const PUBLIC_ROUTES = [
   '/api/backup',
   '/api/auth',
   '/api/generate-translations',
+  '/api/translate',
   '/login',
 ];
 
