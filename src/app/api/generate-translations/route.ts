@@ -22,9 +22,13 @@ const BATCH_SIZE = DIRECTIONS.reduce((s, d) => s + d.perCount, 0);
 export async function GET(req: Request) {
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
   if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ 
+      error: 'Unauthorized',
+      received: secret,
+      expected_length: process.env.CRON_SECRET?.length ?? 'UNDEFINED'
+    }, { status: 401 });
   }
-
+  
   const words = await prisma.word.findMany({
     where: { status: { in: ['LEARNED', 'LEARNING'] } },
     select: { hanzi: true, pinyin: true, meaning: true },
