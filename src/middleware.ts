@@ -9,6 +9,7 @@ const PUBLIC_ROUTES = [
   '/api/telegram-webhook',
   '/api/backup',
   '/api/auth',
+  '/api/generate-translations',
   '/login',
 ];
 
