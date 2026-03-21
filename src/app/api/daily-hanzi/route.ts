@@ -76,12 +76,13 @@ async function sendDailyHanzi(request: NextRequest) {
   let message = `📝 <b>Daily Hanzi Practice</b>\n${dateStr}\n\n`;
 
   selected.forEach((w, i) => {
-      const strokeUrl = `https://en.strokeorder.cc/hanzi/${encodeURIComponent(w.hanzi)}`;
+    const strokeLinks = w.hanzi.split('').map(char =>
+      `<a href="https://en.strokeorder.cc/hanzi/${encodeURIComponent(char)}">${char} ↗</a>`
+        ).join(' · ');
       const hanziheroPath = w.hanzi.length === 1 ? 'characters' : 'words';
       const hanziheroUrl = `https://hanzihero.com/simplified/${hanziheroPath}/${encodeURIComponent(w.hanzi)}`;
-
-    message += `${i + 1}. <b>${w.hanzi}</b>  ·  ${w.pinyin}  ·  ${w.meaning}\n`;
-    message += `     <a href="${strokeUrl}">Stroke order ↗</a>  ·  <a href="${hanziheroUrl}">Breakdown ↗</a>\n\n`;
+    message += `${i + 1}. <b>${w.hanzi}</b> · ${w.pinyin} · ${w.meaning}\n`;
+    message += `     ✍️ ${strokeLinks}   🧩 <a href="${hanziheroUrl}">Breakdown ↗</a>\n\n`;
   });
 
   message += `📊 ${learnedWords.length} learned · ${learningWords.length} learning\n`;
