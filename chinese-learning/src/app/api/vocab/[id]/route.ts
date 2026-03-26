@@ -8,7 +8,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const word = await prisma.word.findUnique({
     where: { id: parseInt(params.id) },
     include: {
-      reviews: {
+      reviewLogs: {
         orderBy: { timestamp: 'desc' },
         take: 20,
       },

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const [words, total] = await Promise.all([
     prisma.word.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { id: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
     }),
