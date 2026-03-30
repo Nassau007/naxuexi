@@ -17,6 +17,9 @@ const pinyinSession = new Map<number, { wordId: number; pinyin: string; hanzi: s
 // key = chatId, value = current hanzi word + running score + wordId for SM-2
 const hanziSession = new Map<number, { wordId: number; pinyin: string; hanzi: string; correct: number; total: number }>();
 
+// key = chatId, value = current recognize word + running score + wordId for SM-2
+const recognizeSession = new Map<number, { wordId: number; pinyin: string; hanzi: string; meaning: string; correct: number; total: number }>();
+
 // --- Status ranking for min() calculation ---
 const STATUS_RANK: Record<string, number> = { NEW: 0, LEARNING: 1, LEARNED: 2 };
 const RANK_TO_STATUS = ['NEW', 'LEARNING', 'LEARNED'];
@@ -143,6 +146,27 @@ async function sendNextPinyinWord(chatId: number, correct: number, total: number
   );
 }
 
+async function sendNextRecognizeWord(chatId: number, correct: number, total: number) {
+  const count = await prisma.word.count();
+  const skip = Math.floor(Math.random() * count);
+  const words = await prisma.word.findMany({ take: 1, skip });
+  const word = words[0];
+
+  recognizeSession.set(chatId, {
+    wordId: word.id,
+    pinyin: word.pinyin,
+    hanzi: word.hanzi,
+    meaning: word.meaning,
+    correct,
+    total,
+  });
+
+  await sendTelegramMessage(
+    `🔍 <b>${word.hanzi}</b>`,
+    { parse_mode: 'HTML' }
+  );
+}
+
 const DIRECTION_LABELS: Record<string, string> = {
   HANZI_TO_EN: '汉字 → 🇬🇧',
   HANZI_TO_FR: '汉字 → 🇫🇷',
@@ -220,6 +244,49 @@ export async function POST(req: Request) {
       }
     } else {
       await sendTelegramMessage('Aucune session hanzi en cours.');
+    }
+
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- /recognize command — start continuous recognize session ---
+  if (text === '/recognize') {
+    const count = await prisma.word.count();
+    if (count === 0) {
+      await sendTelegramMessage('Aucun mot dans le vocabulaire.');
+      return NextResponse.json({ ok: true });
+    }
+
+    await sendTelegramMessage(
+      `🔍 <b>Recognize Challenge</b>\n\nWhat does this character mean? Answer in English or French.\nSend /recognizefinish to end the session.\n`,
+      { parse_mode: 'HTML' }
+    );
+
+    await sendNextRecognizeWord(chatId, 0, 0);
+
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- /recognizefinish command — end recognize session ---
+  if (text === '/recognizefinish') {
+    const session = recognizeSession.get(chatId);
+
+    if (session) {
+      const { correct, total } = session;
+      recognizeSession.delete(chatId);
+
+      if (total === 0) {
+        await sendTelegramMessage('Session terminée. Aucune réponse donnée.');
+      } else {
+        const pct = Math.round((correct / total) * 100);
+        await sendTelegramMessage(
+          `📊 <b>Session terminée</b>\n\n` +
+          `${correct}/${total} correct (${pct}%)`,
+          { parse_mode: 'HTML' }
+        );
+      }
+    } else {
+      await sendTelegramMessage('Aucune session recognize en cours.');
     }
 
     return NextResponse.json({ ok: true });
@@ -352,6 +419,75 @@ export async function POST(req: Request) {
     }
 
     await sendNextHanziWord(chatId, newCorrect, newTotal);
+
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- Recognize answer ---
+  if (recognizeSession.has(chatId) && !text.startsWith('/')) {
+    const session = recognizeSession.get(chatId)!;
+
+    let isCorrect = false;
+    let feedback = '';
+
+    try {
+      const evalPrompt = `A Chinese learner is shown the character(s): ${session.hanzi}
+They answered with: ${text}
+
+Is their answer correct or acceptable? The answer can be in English or French. Be flexible — accept synonyms, partial meanings, or simplified explanations as long as the core meaning is right.
+
+Respond ONLY with JSON (no markdown):
+{
+  "passed": true,
+  "feedback": "Brief feedback in 1 sentence max"
+}`;
+
+      const evalResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY!,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 150,
+          messages: [{ role: 'user', content: evalPrompt }],
+        }),
+      });
+
+      if (evalResponse.ok) {
+        const evalData = await evalResponse.json();
+        const raw = evalData.content?.[0]?.text || '';
+        const clean = raw.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        isCorrect = parsed.passed ?? false;
+        feedback = parsed.feedback ?? '';
+      }
+    } catch (e) {
+      console.error('[recognize] Evaluation error:', e);
+      feedback = 'Could not evaluate.';
+    }
+
+    const newCorrect = session.correct + (isCorrect ? 1 : 0);
+    const newTotal = session.total + 1;
+
+    // Record skill-specific SM-2 review + ReviewLog + recalc overall status
+    await recordReview(session.wordId, isCorrect, 'RECOGNIZE');
+
+    if (isCorrect) {
+      await sendTelegramMessage(
+        `✅ <b>Correct!</b>  ${session.hanzi} (${session.pinyin})\n${feedback}`,
+        { parse_mode: 'HTML' }
+      );
+    } else {
+      await sendTelegramMessage(
+        `❌ <b>${session.hanzi}</b> (${session.pinyin}) — ${session.meaning}\n${feedback}`,
+        { parse_mode: 'HTML' }
+      );
+    }
+
+    await sendNextRecognizeWord(chatId, newCorrect, newTotal);
 
     return NextResponse.json({ ok: true });
   }
