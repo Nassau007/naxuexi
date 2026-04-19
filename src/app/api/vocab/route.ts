@@ -49,6 +49,18 @@ export async function GET(request: NextRequest) {
     },
   });
 
+  // Category breakdown — across ALL words (ignores current filters)
+  const categoryGroups = await prisma.word.groupBy({
+    by: ['category'],
+    _count: true,
+    orderBy: { _count: { category: 'desc' } },
+  });
+
+  const categoryCounts = categoryGroups.map(g => ({
+    category: g.category ?? 'Uncategorized',
+    count: g._count,
+  }));
+
   return NextResponse.json({
     words,
     total,
@@ -61,6 +73,7 @@ export async function GET(request: NextRequest) {
       learned: stats.find(s => s.status === 'LEARNED')?._count || 0,
       dueForReview,
     },
+    categoryCounts,
   });
 }
 
