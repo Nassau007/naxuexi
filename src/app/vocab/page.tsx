@@ -4,13 +4,17 @@ import { useState, useEffect, useCallback } from 'react';
 import type { WordData, VocabStats } from '@/lib/types';
 
 type ViewMode = 'list' | 'add' | 'import';
+type CategoryCount = { category: string; count: number };
 
 export default function VocabPage() {
   const [words, setWords] = useState<WordData[]>([]);
   const [stats, setStats] = useState<VocabStats | null>(null);
+  const [categoryCounts, setCategoryCounts] = useState<CategoryCount[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -20,14 +24,16 @@ export default function VocabPage() {
     const params = new URLSearchParams({ page: String(page), limit: '30' });
     if (search) params.set('search', search);
     if (statusFilter) params.set('status', statusFilter);
+    if (categoryFilter) params.set('category', categoryFilter);
 
     const res = await fetch(`/api/vocab?${params}`);
     const data = await res.json();
     setWords(data.words);
     setStats(data.stats);
+    setCategoryCounts(data.categoryCounts || []);
     setTotalPages(data.totalPages);
     setLoading(false);
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, categoryFilter]);
 
   useEffect(() => {
     fetchWords();
@@ -77,8 +83,23 @@ export default function VocabPage() {
         />
       )}
 
+      {/* Category breakdown (collapsible) */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowBreakdown(s => !s)}
+          className="btn-ghost text-sm text-ink-600 hover:text-ink-900"
+        >
+          {showBreakdown ? '▼' : '▶'} Category breakdown ({categoryCounts.length} categories)
+        </button>
+        {showBreakdown && categoryCounts.length > 0 && (
+          <div className="card p-4 md:p-5 mt-2">
+            <CategoryPieChart data={categoryCounts} />
+          </div>
+        )}
+      </div>
+
       {/* Filters */}
-      <div className="flex gap-3 mb-4">
+      <div className="flex gap-3 mb-4 flex-wrap">
         <input
           type="text"
           placeholder="Search hanzi, pinyin, or meaning..."
@@ -95,6 +116,18 @@ export default function VocabPage() {
           <option value="NEW">New</option>
           <option value="LEARNING">Learning</option>
           <option value="LEARNED">Learned</option>
+        </select>
+        <select
+          value={categoryFilter}
+          onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+          className="input w-auto"
+        >
+          <option value="">All categories</option>
+          {categoryCounts.map(c => (
+            <option key={c.category} value={c.category === 'Uncategorized' ? '' : c.category}>
+              {c.category} ({c.count})
+            </option>
+          ))}
         </select>
       </div>
 
@@ -161,6 +194,85 @@ export default function VocabPage() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// ─── Category Pie Chart ────────────────────────────────────────
+
+function CategoryPieChart({ data }: { data: CategoryCount[] }) {
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+  if (total === 0) return <p className="text-sm text-ink-500">No data yet.</p>;
+
+  // Palette — cycles through ink/jade/vermillion/amber shades
+  const palette = [
+    '#c2410c', // vermillion-700
+    '#059669', // jade-600
+    '#d97706', // amber-600
+    '#475569', // ink-600
+    '#f97316', // orange
+    '#10b981', // emerald
+    '#f59e0b', // amber
+    '#64748b', // slate
+    '#ea580c', // orange-600
+    '#14b8a6', // teal
+    '#eab308', // yellow
+    '#94a3b8', // slate-400
+  ];
+
+  const size = 180;
+  const radius = size / 2;
+  const cx = radius;
+  const cy = radius;
+
+  let cumulative = 0;
+  const slices = data.map((d, i) => {
+    const startAngle = (cumulative / total) * 2 * Math.PI;
+    cumulative += d.count;
+    const endAngle = (cumulative / total) * 2 * Math.PI;
+
+    const x1 = cx + radius * Math.sin(startAngle);
+    const y1 = cy - radius * Math.cos(startAngle);
+    const x2 = cx + radius * Math.sin(endAngle);
+    const y2 = cy - radius * Math.cos(endAngle);
+
+    const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
+
+    // Edge case: single slice covering full circle
+    const pathData = data.length === 1
+      ? `M ${cx - radius} ${cy} A ${radius} ${radius} 0 1 1 ${cx + radius} ${cy} A ${radius} ${radius} 0 1 1 ${cx - radius} ${cy} Z`
+      : `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+    return {
+      path: pathData,
+      color: palette[i % palette.length],
+      label: d.category,
+      count: d.count,
+      pct: ((d.count / total) * 100).toFixed(1),
+    };
+  });
+
+  return (
+    <div className="flex flex-col md:flex-row items-start gap-6">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0">
+        {slices.map((s, i) => (
+          <path key={i} d={s.path} fill={s.color} stroke="white" strokeWidth={1} />
+        ))}
+      </svg>
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+        {slices.map((s, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span
+              className="inline-block w-3 h-3 rounded-sm flex-shrink-0"
+              style={{ backgroundColor: s.color }}
+            />
+            <span className="text-ink-700 truncate">{s.label}</span>
+            <span className="text-ink-400 text-xs ml-auto whitespace-nowrap">
+              {s.count} · {s.pct}%
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
