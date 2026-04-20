@@ -28,6 +28,7 @@ model Word {
   nextReview   DateTime     @default(now())
   reviewCount  Int          @default(0)
   correctCount Int          @default(0)
+  focusReview  Boolean      @default(false)
   reviewLogs   ReviewLog[]
   dailyWords   DailyPracticeWord[]
   masteries    WordMastery[]
