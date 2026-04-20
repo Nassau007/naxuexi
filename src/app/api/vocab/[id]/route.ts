@@ -43,6 +43,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       ...(body.components !== undefined && { components: body.components?.trim() || null }),
       ...(body.mnemonic !== undefined && { mnemonic: body.mnemonic?.trim() || null }),
       ...(body.status && { status: body.status }),
+      ...(typeof body.focusReview === 'boolean' && { focusReview: body.focusReview }),
     },
   });
 
