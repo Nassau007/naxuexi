@@ -3,6 +3,55 @@ import { prisma } from '@/lib/prisma';
 import { sendTelegramMessage } from '@/lib/telegram';
 import { autoSeedIfEmpty } from '@/lib/seed';
 
+// Generate 2 example sentences featuring a target character using Claude Haiku.
+// Returns null on any failure — the focus message still sends without examples.
+async function generateExampleSentences(hanzi: string, pinyin: string, meaning: string): Promise<string | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 400,
+        messages: [
+          {
+            role: 'user',
+            content: `Generate 2 short natural Chinese example sentences featuring the character "${hanzi}" (pinyin: ${pinyin}, meaning: ${meaning}). Each sentence should use common vocabulary appropriate for an HSK 2-3 learner. Respond ONLY with valid JSON (no markdown, no backticks) in this exact format:
+{"sentences":[{"hanzi":"...","pinyin":"...","english":"..."},{"hanzi":"...","pinyin":"...","english":"..."}]}`,
+          },
+        ],
+      }),
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const text = data?.content?.[0]?.text?.trim();
+    if (!text) return null;
+
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+
+    if (!Array.isArray(parsed.sentences) || parsed.sentences.length === 0) return null;
+
+    return parsed.sentences
+      .map((s: { hanzi: string; pinyin: string; english: string }) =>
+        `   • <b>${s.hanzi}</b>\n     <i>${s.pinyin}</i>\n     ${s.english}`
+      )
+      .join('\n\n');
+  } catch (err) {
+    console.error('[focus-hanzi] example sentence generation failed:', err);
+    return null;
+  }
+}
+
 async function sendDailyHanzi(request: NextRequest) {
   // Verify secret if configured
   const { searchParams } = new URL(request.url);
@@ -14,7 +63,7 @@ async function sendDailyHanzi(request: NextRequest) {
   // Auto-seed if database is empty (e.g. after redeploy)
   await autoSeedIfEmpty();
 
-  const count = parseInt(process.env.DAILY_HANZI_COUNT || '15');
+  const count = parseInt(process.env.DAILY_HANZI_COUNT || '8');
 
   // Pick words: prioritize LEARNED, then LEARNING, then NEW
   const learnedWords = await prisma.word.findMany({
@@ -88,27 +137,116 @@ async function sendDailyHanzi(request: NextRequest) {
   message += `📊 ${learnedWords.length} learned · ${learningWords.length} learning\n`;
   message += `🔗 <a href="https://naxuexi.com/flashcards">Review flashcards</a>`;
 
-  // Send via Telegram
+  // Send main daily message via Telegram
+  let mainResult;
   try {
-     const result = await sendTelegramMessage(message, { parse_mode: 'HTML' });
+    mainResult = await sendTelegramMessage(message, { parse_mode: 'HTML' });
 
-    if (!result.ok) {
+    if (!mainResult.ok) {
       return NextResponse.json({
         error: 'Telegram send failed',
-        details: result,
+        details: mainResult,
       }, { status: 500 });
     }
-
-    return NextResponse.json({
-      sent: true,
-      wordCount: selected.length,
-      words: selected.map(w => ({ hanzi: w.hanzi, pinyin: w.pinyin, meaning: w.meaning })),
-      dailyPracticeId: dailyPractice?.id,
-    });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+
+  // ─── FOCUS HANZI — second message ───────────────────────────────────────
+  // Pick a focus word: prioritize flagged words (focusReview=true), else random.
+  let focusSent = false;
+  let focusWord: typeof selected[0] | null = null;
+  try {
+    const flagged = await prisma.word.findMany({ where: { focusReview: true } });
+    if (flagged.length > 0) {
+      focusWord = flagged[Math.floor(Math.random() * flagged.length)];
+    } else {
+      const all = await prisma.word.findMany();
+      if (all.length > 0) {
+        focusWord = all[Math.floor(Math.random() * all.length)];
+      }
+    }
+
+    if (focusWord) {
+      console.log(
+        '[focus-hanzi] selected:',
+        focusWord.hanzi,
+        '·',
+        focusWord.pinyin,
+        '·',
+        'focusReview:',
+        focusWord.focusReview,
+      );
+
+      // Example words containing this character (any character of it), excluding the focus word itself
+      const chars = focusWord.hanzi.split('');
+      const exampleWords = await prisma.word.findMany({
+        where: {
+          AND: [
+            { id: { not: focusWord.id } },
+            { OR: chars.map(c => ({ hanzi: { contains: c } })) },
+          ],
+        },
+        take: 5,
+      });
+
+      // Stroke order links (per character)
+      const strokeLinks = focusWord.hanzi.split('').map(char =>
+        `<a href="https://en.strokeorder.cc/hanzi/${encodeURIComponent(char)}">${char} ↗</a>`
+      ).join(' · ');
+
+      const hanziheroPath = focusWord.hanzi.length === 1 ? 'characters' : 'words';
+      const hanziheroUrl = `https://hanzihero.com/simplified/${hanziheroPath}/${encodeURIComponent(focusWord.hanzi)}`;
+
+      let focusMessage = `🎯 <b>Focus Hanzi</b>\n\n`;
+      focusMessage += `<b>${focusWord.hanzi}</b>\n`;
+      focusMessage += `<i>${focusWord.pinyin}</i> · ${focusWord.meaning}\n\n`;
+
+      if (focusWord.mnemonic && focusWord.mnemonic.trim()) {
+        focusMessage += `💡 <b>Mnemonic</b>\n${focusWord.mnemonic}\n\n`;
+      }
+
+      if (focusWord.components && focusWord.components.trim()) {
+        focusMessage += `🧱 <b>Components</b>\n${focusWord.components}\n\n`;
+      }
+
+      focusMessage += `✍️ <b>Stroke order</b>\n${strokeLinks}\n\n`;
+      focusMessage += `🧩 <a href="${hanziheroUrl}">HanziHero breakdown ↗</a>\n\n`;
+
+      if (exampleWords.length > 0) {
+        focusMessage += `📚 <b>Example words</b>\n`;
+        exampleWords.forEach(ew => {
+          focusMessage += `   • <b>${ew.hanzi}</b> · ${ew.pinyin} · ${ew.meaning}\n`;
+        });
+        focusMessage += `\n`;
+      }
+
+      // Example sentences via Claude Haiku (non-blocking on failure)
+      const sentences = await generateExampleSentences(focusWord.hanzi, focusWord.pinyin, focusWord.meaning);
+      if (sentences) {
+        focusMessage += `📝 <b>Example sentences</b>\n${sentences}`;
+      }
+
+      const focusResult = await sendTelegramMessage(focusMessage, { parse_mode: 'HTML' });
+      focusSent = !!focusResult.ok;
+      if (!focusResult.ok) {
+        console.error('[focus-hanzi] telegram send failed:', focusResult);
+      }
+    }
+  } catch (err) {
+    // Don't fail the whole cron if the focus message breaks
+    console.error('[focus-hanzi] error building/sending focus message:', err);
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
+  return NextResponse.json({
+    sent: true,
+    wordCount: selected.length,
+    words: selected.map(w => ({ hanzi: w.hanzi, pinyin: w.pinyin, meaning: w.meaning })),
+    dailyPracticeId: dailyPractice?.id,
+    focus: focusWord ? { hanzi: focusWord.hanzi, sent: focusSent } : null,
+  });
 }
 
 // Both GET and POST trigger the daily hanzi send
