@@ -152,6 +152,7 @@ export default function VocabPage() {
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Reviews</th>
+                  <th className="px-4 py-3 w-16 text-center">Focus</th>
                   <th className="px-4 py-3 w-20"></th>
                 </tr>
               </thead>
@@ -282,6 +283,8 @@ function CategoryPieChart({ data }: { data: CategoryCount[] }) {
 function WordCard({ word, onUpdate }: { word: WordData; onUpdate: () => void }) {
   const [deleting, setDeleting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingFocus, setUpdatingFocus] = useState(false);
+  const focusReview = (word as unknown as { focusReview?: boolean }).focusReview === true;
 
   const handleDelete = async () => {
     if (!confirm(`Delete "${word.hanzi}"?`)) return;
@@ -298,6 +301,17 @@ function WordCard({ word, onUpdate }: { word: WordData; onUpdate: () => void }) 
       body: JSON.stringify({ status: newStatus }),
     });
     setUpdatingStatus(false);
+    onUpdate();
+  };
+
+  const handleFocusToggle = async () => {
+    setUpdatingFocus(true);
+    await fetch(`/api/vocab/${word.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ focusReview: !focusReview }),
+    });
+    setUpdatingFocus(false);
     onUpdate();
   };
 
@@ -328,6 +342,16 @@ function WordCard({ word, onUpdate }: { word: WordData; onUpdate: () => void }) 
         <p className="text-sm text-ink-600 truncate">{word.meaning}</p>
         {word.category && <p className="text-xs text-ink-400">{word.category}</p>}
       </div>
+      <button
+        onClick={handleFocusToggle}
+        disabled={updatingFocus}
+        title={focusReview ? 'Unflag focus' : 'Flag as focus'}
+        className={`text-lg leading-none flex-shrink-0 transition-opacity disabled:opacity-30 ${
+          focusReview ? 'opacity-100' : 'opacity-25'
+        }`}
+      >
+        🎯
+      </button>
       <button
         onClick={handleDelete}
         disabled={deleting}
@@ -499,6 +523,8 @@ function ImportCSV({ onClose, onImported }: { onClose: () => void; onImported: (
 function WordRow({ word, onUpdate }: { word: WordData; onUpdate: () => void }) {
   const [deleting, setDeleting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingFocus, setUpdatingFocus] = useState(false);
+  const focusReview = (word as unknown as { focusReview?: boolean }).focusReview === true;
 
   const handleDelete = async () => {
     if (!confirm(`Delete "${word.hanzi}"?`)) return;
@@ -515,6 +541,17 @@ function WordRow({ word, onUpdate }: { word: WordData; onUpdate: () => void }) {
       body: JSON.stringify({ status: newStatus }),
     });
     setUpdatingStatus(false);
+    onUpdate();
+  };
+
+  const handleFocusToggle = async () => {
+    setUpdatingFocus(true);
+    await fetch(`/api/vocab/${word.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ focusReview: !focusReview }),
+    });
+    setUpdatingFocus(false);
     onUpdate();
   };
 
@@ -548,6 +585,18 @@ function WordRow({ word, onUpdate }: { word: WordData; onUpdate: () => void }) {
       </td>
       <td className="px-4 py-3 text-sm text-ink-500">
         {word.reviewCount} ({word.correctCount}✓)
+      </td>
+      <td className="px-4 py-3 text-center">
+        <button
+          onClick={handleFocusToggle}
+          disabled={updatingFocus}
+          title={focusReview ? 'Unflag — stop prioritizing this word' : 'Flag — prioritize this word in daily focus hanzi'}
+          className={`text-lg leading-none transition-opacity disabled:opacity-30 ${
+            focusReview ? 'opacity-100' : 'opacity-25 hover:opacity-75'
+          }`}
+        >
+          🎯
+        </button>
       </td>
       <td className="px-4 py-3">
         <button
