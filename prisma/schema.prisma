@@ -115,6 +115,19 @@ model Poem {
   progress  PoemProgress?
 }
 
+model ConversationSession {
+  id          String    @id @default(cuid())
+  topic       String
+  topicLabel  String
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  turnCount   Int       @default(0)
+  transcript  String    @default("[]")
+  corrections String    @default("[]")
+  newWords    String    @default("[]")
+
+  @@index([startedAt])
+}
 model PoemProgress {
   id         Int      @id @default(autoincrement())
   poemId     Int      @unique
