@@ -108,8 +108,8 @@ export default function ConversePage() {
   }
 
   return (
-    <div className="min-h-screen bg-ink-50 p-4 md:p-8 pb-24 md:pb-8 md:ml-64">
-      <div className="max-w-6xl mx-auto">
+<div className="min-h-screen bg-ink-50 p-4 md:p-8 pb-24 md:pb-8 md:ml-64">
+  <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl md:text-3xl font-bold text-ink-900 mb-6">
           💬 Conversations
         </h1>
