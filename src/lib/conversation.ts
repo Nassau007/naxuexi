@@ -34,12 +34,17 @@ export interface BotResponse {
 export async function getUserVocab(): Promise<{ hanzi: string; pinyin: string; meaning: string }[]> {
   const words = await prisma.word.findMany({
     where: {
-      OR: [{ status: 'LEARNING' }, { status: 'LEARNED' }],
+      OR: [
+        { status: 'LEARNING' },
+        { status: 'LEARNED' },
+        { masteries: { some: { status: { in: ['LEARNING', 'LEARNED'] } } } },
+      ],
     },
     select: { hanzi: true, pinyin: true, meaning: true },
   });
   return words;
 }
+
 
 export async function callConversationBot(
   topic: ConversationTopic,
