@@ -8,6 +8,7 @@ export interface ConversationTurn {
   role: 'user' | 'assistant';
   content_zh: string;
   content_pinyin?: string;
+  content_en?: string;
   timestamp: string;
 }
 
@@ -27,6 +28,8 @@ export interface NewWord {
 export interface BotResponse {
   reply_chinese: string;
   reply_pinyin: string;
+  reply_english: string;
+  user_translation_en: string | null;
   correction: { mistake: string; correction: string; explanation: string } | null;
   new_words_introduced: NewWord[];
 }
@@ -45,6 +48,59 @@ export async function getUserVocab(): Promise<{ hanzi: string; pinyin: string; m
   return words;
 }
 
+/**
+ * Process new words proposed by Claude. Returns:
+ *  - added: list of words written to PendingVocab
+ *  - duplicates: list of hanzi that were skipped because they already exist in Word table
+ *  - alreadyPending: list of hanzi skipped silently because already in PendingVocab
+ */
+export async function processNewWords(
+  newWords: NewWord[],
+  sessionId: string,
+  topicLabel: string
+): Promise<{ added: NewWord[]; duplicates: NewWord[]; alreadyPending: NewWord[] }> {
+  const added: NewWord[] = [];
+  const duplicates: NewWord[] = [];
+  const alreadyPending: NewWord[] = [];
+
+  for (const w of newWords) {
+    if (!w.hanzi) continue;
+
+    // Check Word table
+    const existingWord = await prisma.word.findUnique({
+      where: { hanzi: w.hanzi },
+      select: { id: true },
+    });
+    if (existingWord) {
+      duplicates.push(w);
+      continue;
+    }
+
+    // Check PendingVocab table
+    const existingPending = await prisma.pendingVocab.findFirst({
+      where: { hanzi: w.hanzi },
+      select: { id: true },
+    });
+    if (existingPending) {
+      alreadyPending.push(w);
+      continue;
+    }
+
+    // Insert
+    await prisma.pendingVocab.create({
+      data: {
+        hanzi: w.hanzi,
+        pinyin: w.pinyin,
+        meaning: w.meaning,
+        sourceSession: sessionId,
+        sourceTopic: topicLabel,
+      },
+    });
+    added.push(w);
+  }
+
+  return { added, duplicates, alreadyPending };
+}
 
 export async function callConversationBot(
   topic: ConversationTopic,
@@ -64,17 +120,21 @@ ${vocabBlock}
 RULES:
 1. Stay in character for the role-play scenario.
 2. Use vocabulary from the list above as much as possible.
-3. You should AVOID introducing new words. Use the vocabulary list above as much as possible, even if it means slightly less idiomatic phrasing. Only introduce a new word if there is genuinely no way to express the concept with the existing vocabulary. Hard cap: 2 new words per entire session. Track all introduced words in new_words_introduced so the user sees them."You may introduce 1-2 new words per session if absolutely needed for the scenario. Track these in "new_words_introduced". Do not repeat words already introduced earlier in the conversation.
+3. You should AVOID introducing new words. Use the vocabulary list above as much as possible, even if it means slightly less idiomatic phrasing. Only introduce a new word if there is genuinely no way to express the concept with the existing vocabulary. Hard cap: 2 new words per entire session. Track all introduced words in "new_words_introduced".
 4. If the user makes a grammatical or word-choice mistake, note it in "correction". Be specific and brief. Explanation must be in English.
 5. Do not correct minor issues that don't impede communication. Only flag meaningful errors.
 6. Keep your replies short (1-2 sentences) — this is conversational practice.
 7. Always provide pinyin with tone marks for your Chinese reply.
 8. The user may write in hanzi, pinyin (with or without tone marks), or mix both. Interpret pinyin charitably — match it against the vocabulary list above to disambiguate when possible. If they make a tone error in pinyin, or pick the wrong character/word, flag it in "correction" (e.g. mistake: "wo yāo yi ge kafei", correction: "wǒ yào yī bēi kāfēi", explanation: "Tone on yào (要 = want), and 杯 bēi is the measure word for drinks").
+9. ALWAYS provide an English translation of YOUR Chinese reply in "reply_english". Use natural, idiomatic English.
+10. ALWAYS provide an English translation of the USER's most recent message in "user_translation_en". If the user wrote in pinyin, translate from the intended hanzi meaning. On the opening turn (when there is no user message yet), set "user_translation_en" to null.
 
 You MUST respond with ONLY a valid JSON object in this exact shape:
 {
   "reply_chinese": "your Chinese reply",
   "reply_pinyin": "pinyin of your reply",
+  "reply_english": "natural English translation of your Chinese reply",
+  "user_translation_en": "natural English translation of the user's most recent message" OR null,
   "correction": null OR { "mistake": "what user said wrong", "correction": "the correct version", "explanation": "brief why, in English" },
   "new_words_introduced": [] OR [{ "hanzi": "...", "pinyin": "...", "meaning": "..." }]
 }
@@ -105,7 +165,7 @@ No preamble, no markdown, no code fences. JSON only.`;
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 500,
+      max_tokens: 700,
       system: systemPrompt,
       messages,
     }),
@@ -150,7 +210,9 @@ export function formatEndSummary(
   topicLabel: string,
   turnCount: number,
   corrections: Correction[],
-  newWords: NewWord[]
+  newWords: NewWord[],
+  transcript: ConversationTurn[],
+  duplicates: NewWord[]
 ): string {
   let msg = `<b>📊 Session Summary — ${topicLabel}</b>\n\n`;
   msg += `Your turns: ${turnCount}\n`;
@@ -165,9 +227,27 @@ export function formatEndSummary(
   }
 
   if (newWords.length > 0) {
-    msg += `\n<b>New words introduced:</b>\n`;
+    msg += `\n<b>📖 New words sent to review:</b>\n`;
     newWords.forEach(w => {
       msg += `• <b>${w.hanzi}</b> (${w.pinyin}) — ${w.meaning}\n`;
+    });
+    msg += `<i>Approve them at naxuexi.com/converse</i>\n`;
+  }
+
+  if (duplicates.length > 0) {
+    msg += `\n<b>⚠️ Duplicates (already in your vocabulary):</b>\n`;
+    duplicates.forEach(w => {
+      msg += `• ${w.hanzi} (${w.pinyin})\n`;
+    });
+    msg += `<i>Claude flagged these as new but you already know them.</i>\n`;
+  }
+
+  const translatableTurns = transcript.filter(t => t.content_en);
+  if (translatableTurns.length > 0) {
+    msg += `\n<b>🇬🇧 English translation:</b>\n`;
+    translatableTurns.forEach(t => {
+      const speaker = t.role === 'user' ? 'You' : 'Bot';
+      msg += `<b>${speaker}:</b> ${t.content_en}\n`;
     });
   }
 
