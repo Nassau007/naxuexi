@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: '概', description: 'Overview' },
@@ -15,6 +16,20 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/converse/pending/count')
+      .then(r => r.ok ? r.json() : { count: 0 })
+      .then(data => {
+        if (!cancelled) setPendingCount(data.count ?? 0);
+      })
+      .catch(() => {
+        if (!cancelled) setPendingCount(0);
+      });
+    return () => { cancelled = true; };
+  }, [pathname]);
 
   return (
     <>
@@ -31,6 +46,7 @@ export function Sidebar() {
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
+            const showBadge = item.href === '/converse' && pendingCount && pendingCount > 0;
             return (
               <Link
                 key={item.href}
@@ -50,8 +66,13 @@ export function Sidebar() {
                 `}>
                   {item.icon}
                 </span>
-                <div>
+                <div className="flex-1 flex items-center justify-between">
                   <div className="text-sm font-medium">{item.label}</div>
+                  {showBadge && (
+                    <span className="text-[10px] font-semibold bg-amber-500 text-white rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                      {pendingCount}
+                    </span>
+                  )}
                 </div>
               </Link>
             );
@@ -69,16 +90,22 @@ export function Sidebar() {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-ink-200/60 flex">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
+          const showBadge = item.href === '/converse' && pendingCount && pendingCount > 0;
           return (
             <Link
               key={item.href}
               href={item.href}
               className={`
                 flex-1 flex flex-col items-center justify-center py-2 gap-0.5
-                transition-colors duration-150
+                transition-colors duration-150 relative
                 ${isActive ? 'text-vermillion-600' : 'text-ink-400'}
               `}
             >
+              {showBadge && (
+                <span className="absolute top-1 right-1/2 translate-x-3 text-[8px] font-semibold bg-amber-500 text-white rounded-full px-1 min-w-[14px] text-center leading-tight">
+                  {pendingCount}
+                </span>
+              )}
               <span className="hanzi-display text-xl leading-none">{item.icon}</span>
               <span className="text-[9px] font-medium leading-none mt-0.5 truncate w-full text-center px-0.5">
                 {item.label}
