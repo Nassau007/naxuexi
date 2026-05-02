@@ -18,6 +18,7 @@ interface Turn {
   role: 'user' | 'assistant';
   content_zh: string;
   content_pinyin?: string;
+  content_en?: string;
   timestamp: string;
 }
 
@@ -46,6 +47,16 @@ interface SessionDetail {
   newWords: NewWord[];
 }
 
+interface PendingVocab {
+  id: string;
+  hanzi: string;
+  pinyin: string;
+  meaning: string;
+  sourceSession: string;
+  sourceTopic: string;
+  createdAt: string;
+}
+
 export default function ConversePage() {
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [selected, setSelected] = useState<SessionDetail | null>(null);
@@ -54,11 +65,25 @@ export default function ConversePage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
 
+  // Pending vocab state
+  const [pending, setPending] = useState<PendingVocab[]>([]);
+  const [editing, setEditing] = useState<Record<string, { pinyin: string; meaning: string }>>({});
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
-    fetch('/api/converse/sessions')
-      .then(r => r.json())
-      .then(data => {
-        setSessions(data.sessions || []);
+    Promise.all([
+      fetch('/api/converse/sessions').then(r => r.json()),
+      fetch('/api/converse/pending').then(r => r.json()),
+    ])
+      .then(([sessData, pendData]) => {
+        setSessions(sessData.sessions || []);
+        setPending(pendData.pending || []);
+        // Seed editing state with current values
+        const seed: Record<string, { pinyin: string; meaning: string }> = {};
+        (pendData.pending || []).forEach((p: PendingVocab) => {
+          seed[p.id] = { pinyin: p.pinyin, meaning: p.meaning };
+        });
+        setEditing(seed);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -94,6 +119,59 @@ export default function ConversePage() {
     });
   }
 
+  function setBusy(id: string, busy: boolean) {
+    setBusyIds(prev => {
+      const next = new Set(prev);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function approveOne(p: PendingVocab) {
+    const edit = editing[p.id] || { pinyin: p.pinyin, meaning: p.meaning };
+    setBusy(p.id, true);
+    try {
+      const res = await fetch('/api/converse/pending', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: p.id,
+          hanzi: p.hanzi,
+          pinyin: edit.pinyin,
+          meaning: edit.meaning,
+        }),
+      });
+      if (res.ok) {
+        setPending(prev => prev.filter(x => x.id !== p.id));
+      } else {
+        alert("Erreur lors de l'ajout.");
+      }
+    } finally {
+      setBusy(p.id, false);
+    }
+  }
+
+  async function discardOne(p: PendingVocab) {
+    if (!confirm(`Supprimer ${p.hanzi} sans l'ajouter ?`)) return;
+    setBusy(p.id, true);
+    try {
+      const res = await fetch(`/api/converse/pending?id=${p.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setPending(prev => prev.filter(x => x.id !== p.id));
+      }
+    } finally {
+      setBusy(p.id, false);
+    }
+  }
+
+  async function approveAll() {
+    if (!confirm(`Approuver les ${pending.length} mots avec leurs valeurs actuelles ?`)) return;
+    for (const p of pending) {
+      await approveOne(p);
+    }
+  }
+
   async function deleteSession(id: string) {
     if (!confirm('Supprimer cette session ?')) return;
     const res = await fetch(`/api/converse/sessions/${id}`, { method: 'DELETE' });
@@ -108,11 +186,110 @@ export default function ConversePage() {
   }
 
   return (
-<div className="min-h-screen bg-ink-50 p-4 md:p-8 pb-24 md:pb-8 md:ml-64">
-  <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-ink-50 p-4 md:p-8 pb-24 md:pb-8">
+      <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl md:text-3xl font-bold text-ink-900 mb-6">
           💬 Conversations
         </h1>
+
+        {/* Pending Review section */}
+        {pending.length > 0 && (
+          <div className="mb-8 bg-white rounded-lg border border-amber-300 p-4 md:p-6">
+            <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
+              <div>
+                <h2 className="text-lg font-bold text-ink-900">
+                  📖 Pending Review ({pending.length})
+                </h2>
+                <p className="text-xs text-ink-500 mt-1">
+                  New words from /converse. Edit if needed, then approve or discard.
+                </p>
+              </div>
+              <button
+                onClick={approveAll}
+                disabled={busyIds.size > 0}
+                className="px-3 py-1.5 text-sm bg-jade-500 text-white rounded-md hover:bg-jade-600 disabled:opacity-50"
+              >
+                Approve all
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {pending.map(p => {
+                const edit = editing[p.id] || { pinyin: p.pinyin, meaning: p.meaning };
+                const isBusy = busyIds.has(p.id);
+                return (
+                  <div
+                    key={p.id}
+                    className="border border-ink-200 rounded-lg p-3 bg-ink-50"
+                  >
+                    <div className="flex items-start gap-3 flex-wrap md:flex-nowrap">
+                      <div className="flex-shrink-0 min-w-[80px]">
+                        <div className="text-2xl font-bold text-ink-900">{p.hanzi}</div>
+                        <div className="text-[10px] text-ink-400 mt-1">
+                          {p.sourceTopic}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div>
+                          <label className="text-[10px] text-ink-500 uppercase tracking-wide">
+                            Pinyin
+                          </label>
+                          <input
+                            type="text"
+                            value={edit.pinyin}
+                            onChange={e =>
+                              setEditing(prev => ({
+                                ...prev,
+                                [p.id]: { ...edit, pinyin: e.target.value },
+                              }))
+                            }
+                            disabled={isBusy}
+                            className="w-full text-sm px-2 py-1 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-500 uppercase tracking-wide">
+                            Meaning
+                          </label>
+                          <input
+                            type="text"
+                            value={edit.meaning}
+                            onChange={e =>
+                              setEditing(prev => ({
+                                ...prev,
+                                [p.id]: { ...edit, meaning: e.target.value },
+                              }))
+                            }
+                            disabled={isBusy}
+                            className="w-full text-sm px-2 py-1 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-row md:flex-col gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => approveOne(p)}
+                          disabled={isBusy}
+                          className="px-3 py-1 text-xs bg-jade-500 text-white rounded-md hover:bg-jade-600 disabled:opacity-50"
+                        >
+                          ✅ Approve
+                        </button>
+                        <button
+                          onClick={() => discardOne(p)}
+                          disabled={isBusy}
+                          className="px-3 py-1 text-xs bg-vermillion-500 text-white rounded-md hover:bg-vermillion-600 disabled:opacity-50"
+                        >
+                          ❌ Discard
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p className="text-ink-600">Chargement...</p>
@@ -201,6 +378,11 @@ export default function ConversePage() {
                         {turn.content_pinyin && (
                           <div className="text-sm text-ink-600 italic mt-1 break-words">
                             {turn.content_pinyin}
+                          </div>
+                        )}
+                        {turn.content_en && (
+                          <div className="text-xs text-ink-500 mt-1 break-words">
+                            🇬🇧 {turn.content_en}
                           </div>
                         )}
                       </div>
