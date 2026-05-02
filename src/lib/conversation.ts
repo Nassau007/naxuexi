@@ -64,7 +64,7 @@ ${vocabBlock}
 RULES:
 1. Stay in character for the role-play scenario.
 2. Use vocabulary from the list above as much as possible.
-3. You may introduce 1-2 new words per session if absolutely needed for the scenario. Track these in "new_words_introduced". Do not repeat words already introduced earlier in the conversation.
+3. You should AVOID introducing new words. Use the vocabulary list above as much as possible, even if it means slightly less idiomatic phrasing. Only introduce a new word if there is genuinely no way to express the concept with the existing vocabulary. Hard cap: 2 new words per entire session. Track all introduced words in new_words_introduced so the user sees them."You may introduce 1-2 new words per session if absolutely needed for the scenario. Track these in "new_words_introduced". Do not repeat words already introduced earlier in the conversation.
 4. If the user makes a grammatical or word-choice mistake, note it in "correction". Be specific and brief. Explanation must be in English.
 5. Do not correct minor issues that don't impede communication. Only flag meaningful errors.
 6. Keep your replies short (1-2 sentences) — this is conversational practice.
