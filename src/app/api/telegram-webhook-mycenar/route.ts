@@ -215,7 +215,7 @@ export async function POST(req: Request) {
     if (passedCount === total) {
       report += `\nEnvoie /next pour débloquer les 5 vers suivants 🎯`;
     } else {
-      report += `\n${passedCount}/${total} vers corrects. Réessaie avec /poem !`;
+      report += `\n${passedCount}/${total} vers corrects. Réessaie !`;
     }
 
     await sendMycenarMessage(report, { parse_mode: 'HTML' });
