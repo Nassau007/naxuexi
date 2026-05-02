@@ -14,6 +14,7 @@ import {
   getUserVocab,
   formatTurnForTelegram,
   formatEndSummary,
+  processNewWords,
   type ConversationTurn,
   type Correction,
   type NewWord,
@@ -44,6 +45,7 @@ type ConversationState =
       history: ConversationTurn[];
       corrections: Correction[];
       newWords: NewWord[];
+      duplicateWarnings: NewWord[];
       vocabList: { hanzi: string; pinyin: string; meaning: string }[];
       turnCount: number;
     };
@@ -256,8 +258,15 @@ export async function POST(req: Request) {
     // Active session — persist and send summary
     await persistConversation(state, true);
 
-    await sendTelegramMessage(
-      formatEndSummary(state.topicLabel, state.turnCount, state.corrections, state.newWords),
+await sendTelegramMessage(
+      formatEndSummary(
+        state.topicLabel,
+        state.turnCount,
+        state.corrections,
+        state.newWords,
+        state.history,
+        state.duplicateWarnings
+      ),
       { parse_mode: 'HTML' }
     );
 
@@ -300,14 +309,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    const openingTurn: ConversationTurn = {
+const openingTurn: ConversationTurn = {
       role: 'assistant',
       content_zh: opening.reply_chinese,
       content_pinyin: opening.reply_pinyin,
+      content_en: opening.reply_english,
       timestamp: new Date().toISOString(),
     };
 
-    const newWords: NewWord[] = opening.new_words_introduced || [];
+    // Process any new words from opening turn through PendingVocab pipeline
+    let openingAdded: NewWord[] = [];
+    let openingDuplicates: NewWord[] = [];
+    if (opening.new_words_introduced && opening.new_words_introduced.length > 0) {
+      try {
+        const result = await processNewWords(
+          opening.new_words_introduced,
+          dbSession.id,
+          topic.label
+        );
+        openingAdded = result.added;
+        openingDuplicates = result.duplicates;
+      } catch (e) {
+        console.error('[converse] opening processNewWords failed:', e);
+      }
+    }
 
     // Set active state
     const activeState: Extract<ConversationState, { phase: 'active' }> = {
@@ -317,7 +342,8 @@ export async function POST(req: Request) {
       topicLabel: topic.label,
       history: [openingTurn],
       corrections: [],
-      newWords,
+      newWords: openingAdded,
+      duplicateWarnings: openingDuplicates,
       vocabList,
       turnCount: 0,
     };
@@ -382,15 +408,28 @@ export async function POST(req: Request) {
       });
     }
 
-    // Track new words (de-dup against ones we've already added)
+// Process new words: write to PendingVocab, dedupe vs Word table + existing pending
     if (reply.new_words_introduced && reply.new_words_introduced.length > 0) {
-      for (const w of reply.new_words_introduced) {
-        if (!convState.newWords.find(existing => existing.hanzi === w.hanzi)) {
-          convState.newWords.push(w);
+      try {
+        const result = await processNewWords(
+          reply.new_words_introduced,
+          convState.sessionId,
+          convState.topicLabel
+        );
+        for (const w of result.added) {
+          if (!convState.newWords.find(existing => existing.hanzi === w.hanzi)) {
+            convState.newWords.push(w);
+          }
         }
+        for (const w of result.duplicates) {
+          if (!convState.duplicateWarnings.find(existing => existing.hanzi === w.hanzi)) {
+            convState.duplicateWarnings.push(w);
+          }
+        }
+      } catch (e) {
+        console.error('[converse] processNewWords failed:', e);
       }
     }
-
     // Persist
     await persistConversation(convState, false);
 
