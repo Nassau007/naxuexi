@@ -137,3 +137,16 @@ model PoemProgress {
   active     Boolean  @default(true)
   updatedAt  DateTime @updatedAt
 }
+
+
+model PendingVocab {
+  id            String   @id @default(cuid())
+  hanzi         String
+  pinyin        String
+  meaning       String
+  sourceSession String
+  sourceTopic   String
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}
