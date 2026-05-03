@@ -144,6 +144,7 @@ model PendingVocab {
   hanzi         String
   pinyin        String
   meaning       String
+  category      String?
   sourceSession String
   sourceTopic   String
   createdAt     DateTime @default(now())
