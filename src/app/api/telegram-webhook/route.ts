@@ -299,10 +299,13 @@ await sendTelegramMessage(
 // Pull vocab
     const vocabList = await getUserVocab();
 
+// Fetch existing categories so Claude can categorize new words
+    const categories = await getDistinctCategories();
+
     // Generate opening turn from Claude
     let opening;
     try {
-      opening = await callConversationBot(topic, vocabList, [], null);
+      opening = await callConversationBot(topic, vocabList, [], null, categories);
     } catch (e) {
       console.error('[converse] Opening generation failed:', e);
       conversationSession.delete(chatId);
