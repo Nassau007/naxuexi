@@ -23,6 +23,7 @@ export interface NewWord {
   hanzi: string;
   pinyin: string;
   meaning: string;
+  category?: string;
 }
 
 export interface BotResponse {
@@ -46,6 +47,22 @@ export async function getUserVocab(): Promise<{ hanzi: string; pinyin: string; m
     select: { hanzi: true, pinyin: true, meaning: true },
   });
   return words;
+}
+
+/**
+ * Returns the distinct list of category names currently in use in the Word table.
+ * Used at session start so Claude can categorize new words consistently.
+ */
+export async function getDistinctCategories(): Promise<string[]> {
+  const rows = await prisma.word.findMany({
+    where: { category: { not: null } },
+    select: { category: true },
+    distinct: ['category'],
+  });
+  return rows
+    .map(r => r.category)
+    .filter((c): c is string => typeof c === 'string' && c.length > 0)
+    .sort();
 }
 
 /**
@@ -92,6 +109,7 @@ export async function processNewWords(
         hanzi: w.hanzi,
         pinyin: w.pinyin,
         meaning: w.meaning,
+        category: w.category || null,
         sourceSession: sessionId,
         sourceTopic: topicLabel,
       },
@@ -106,28 +124,37 @@ export async function callConversationBot(
   topic: ConversationTopic,
   vocabList: { hanzi: string; pinyin: string; meaning: string }[],
   history: ConversationTurn[],
-  userMessage: string | null
+  userMessage: string | null,
+  categories: string[]
 ): Promise<BotResponse> {
   const vocabBlock = vocabList
     .map(w => `${w.hanzi} (${w.pinyin}) - ${w.meaning}`)
     .join('\n');
+
+  const categoriesBlock = categories.length > 0
+    ? categories.map(c => `- ${c}`).join('\n')
+    : '- (no categories yet)';
 
   const systemPrompt = `${topic.systemPrompt}
 
 The user is a Chinese learner. Their known vocabulary is:
 ${vocabBlock}
 
+Existing vocabulary categories used by the user:
+${categoriesBlock}
+
 RULES:
 1. Stay in character for the role-play scenario.
 2. Use vocabulary from the list above as much as possible.
 3. You should AVOID introducing new words. Use the vocabulary list above as much as possible, even if it means slightly less idiomatic phrasing. Only introduce a new word if there is genuinely no way to express the concept with the existing vocabulary. Hard cap: 2 new words per entire session. Track all introduced words in "new_words_introduced".
-4. If the user makes a grammatical or word-choice mistake, note it in "correction". Be specific and brief. Explanation must be in English.
-5. Do not correct minor issues that don't impede communication. Only flag meaningful errors.
-6. Keep your replies short (1-2 sentences) — this is conversational practice.
-7. Always provide pinyin with tone marks for your Chinese reply.
-8. The user may write in hanzi, pinyin (with or without tone marks), or mix both. Interpret pinyin charitably — match it against the vocabulary list above to disambiguate when possible. If they make a tone error in pinyin, or pick the wrong character/word, flag it in "correction" (e.g. mistake: "wo yāo yi ge kafei", correction: "wǒ yào yī bēi kāfēi", explanation: "Tone on yào (要 = want), and 杯 bēi is the measure word for drinks").
-9. ALWAYS provide an English translation of YOUR Chinese reply in "reply_english". Use natural, idiomatic English.
-10. ALWAYS provide an English translation of the USER's most recent message in "user_translation_en". If the user wrote in pinyin, translate from the intended hanzi meaning. On the opening turn (when there is no user message yet), set "user_translation_en" to null.
+4. For each new word you introduce, suggest the most appropriate category from the existing categories list above. Reuse an existing category whenever it fits — do not invent new categories unless absolutely none of the existing ones apply. Set the category in the "category" field of each new word.
+5. If the user makes a grammatical or word-choice mistake, note it in "correction". Be specific and brief. Explanation must be in English.
+6. Do not correct minor issues that don't impede communication. Only flag meaningful errors.
+7. Keep your replies short (1-2 sentences) — this is conversational practice.
+8. Always provide pinyin with tone marks for your Chinese reply.
+9. The user may write in hanzi, pinyin (with or without tone marks), or mix both. Interpret pinyin charitably — match it against the vocabulary list above to disambiguate when possible. If they make a tone error in pinyin, or pick the wrong character/word, flag it in "correction" (e.g. mistake: "wo yāo yi ge kafei", correction: "wǒ yào yī bēi kāfēi", explanation: "Tone on yào (要 = want), and 杯 bēi is the measure word for drinks").
+10. ALWAYS provide an English translation of YOUR Chinese reply in "reply_english". Use natural, idiomatic English.
+11. ALWAYS provide an English translation of the USER's most recent message in "user_translation_en". If the user wrote in pinyin, translate from the intended hanzi meaning. On the opening turn (when there is no user message yet), set "user_translation_en" to null.
 
 You MUST respond with ONLY a valid JSON object in this exact shape:
 {
@@ -136,7 +163,7 @@ You MUST respond with ONLY a valid JSON object in this exact shape:
   "reply_english": "natural English translation of your Chinese reply",
   "user_translation_en": "natural English translation of the user's most recent message" OR null,
   "correction": null OR { "mistake": "what user said wrong", "correction": "the correct version", "explanation": "brief why, in English" },
-  "new_words_introduced": [] OR [{ "hanzi": "...", "pinyin": "...", "meaning": "..." }]
+  "new_words_introduced": [] OR [{ "hanzi": "...", "pinyin": "...", "meaning": "...", "category": "category name from the list above" }]
 }
 
 No preamble, no markdown, no code fences. JSON only.`;
