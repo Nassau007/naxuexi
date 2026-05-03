@@ -46,7 +46,7 @@ export function Sidebar() {
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
-            const showBadge = item.href === '/converse' && pendingCount && pendingCount > 0;
+            const showBadge = item.href === '/converse' && typeof pendingCount === 'number' && pendingCount > 0;
             return (
               <Link
                 key={item.href}
