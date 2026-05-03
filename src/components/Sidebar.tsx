@@ -90,7 +90,7 @@ export function Sidebar() {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-ink-200/60 flex">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
-          const showBadge = item.href === '/converse' && pendingCount && pendingCount > 0;
+          const showBadge = item.href === '/converse' && typeof pendingCount === 'number' && pendingCount > 0;
           return (
             <Link
               key={item.href}
