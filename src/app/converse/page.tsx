@@ -218,73 +218,78 @@ export default function ConversePage() {
                 const edit = editing[p.id] || { pinyin: p.pinyin, meaning: p.meaning };
                 const isBusy = busyIds.has(p.id);
                 return (
-                  <div
-                    key={p.id}
-                    className="border border-ink-200 rounded-lg p-3 bg-ink-50"
-                  >
-                    <div className="flex items-start gap-3 flex-wrap md:flex-nowrap">
-                      <div className="flex-shrink-0 min-w-[80px]">
-                        <div className="text-2xl font-bold text-ink-900">{p.hanzi}</div>
-                        <div className="text-[10px] text-ink-400 mt-1">
-                          {p.sourceTopic}
-                        </div>
-                      </div>
+<div
+                  key={p.id}
+                  className="border border-ink-200 rounded-lg p-3 bg-ink-50"
+                >
+                  {/* Mobile: vertical stack. Desktop (md+): horizontal layout. */}
+                  <div className="flex flex-col md:flex-row md:items-start md:gap-3">
 
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div>
-                          <label className="text-[10px] text-ink-500 uppercase tracking-wide">
-                            Pinyin
-                          </label>
-                          <input
-                            type="text"
-                            value={edit.pinyin}
-                            onChange={e =>
-                              setEditing(prev => ({
-                                ...prev,
-                                [p.id]: { ...edit, pinyin: e.target.value },
-                              }))
-                            }
-                            disabled={isBusy}
-                            className="w-full text-sm px-2 py-1 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-ink-500 uppercase tracking-wide">
-                            Meaning
-                          </label>
-                          <input
-                            type="text"
-                            value={edit.meaning}
-                            onChange={e =>
-                              setEditing(prev => ({
-                                ...prev,
-                                [p.id]: { ...edit, meaning: e.target.value },
-                              }))
-                            }
-                            disabled={isBusy}
-                            className="w-full text-sm px-2 py-1 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-row md:flex-col gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => approveOne(p)}
-                          disabled={isBusy}
-                          className="px-3 py-1 text-xs bg-jade-500 text-white rounded-md hover:bg-jade-600 disabled:opacity-50"
-                        >
-                          ✅ Approve
-                        </button>
-                        <button
-                          onClick={() => discardOne(p)}
-                          disabled={isBusy}
-                          className="px-3 py-1 text-xs bg-vermillion-500 text-white rounded-md hover:bg-vermillion-600 disabled:opacity-50"
-                        >
-                          ❌ Discard
-                        </button>
+                    {/* Hanzi block */}
+                    <div className="md:flex-shrink-0 md:min-w-[80px] mb-3 md:mb-0">
+                      <div className="text-3xl md:text-2xl font-bold text-ink-900">{p.hanzi}</div>
+                      <div className="text-[10px] text-ink-400 mt-1">
+                        {p.sourceTopic}
                       </div>
                     </div>
+
+                    {/* Inputs */}
+                    <div className="flex-1 min-w-0 space-y-2 mb-3 md:mb-0">
+                      <div>
+                        <label className="text-[10px] text-ink-500 uppercase tracking-wide">
+                          Pinyin
+                        </label>
+                        <input
+                          type="text"
+                          value={edit.pinyin}
+                          onChange={e =>
+                            setEditing(prev => ({
+                              ...prev,
+                              [p.id]: { ...edit, pinyin: e.target.value },
+                            }))
+                          }
+                          disabled={isBusy}
+                          className="w-full text-sm px-2 py-1.5 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-ink-500 uppercase tracking-wide">
+                          Meaning
+                        </label>
+                        <input
+                          type="text"
+                          value={edit.meaning}
+                          onChange={e =>
+                            setEditing(prev => ({
+                              ...prev,
+                              [p.id]: { ...edit, meaning: e.target.value },
+                            }))
+                          }
+                          disabled={isBusy}
+                          className="w-full text-sm px-2 py-1.5 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Buttons: side-by-side on mobile, stacked on desktop */}
+                    <div className="flex flex-row md:flex-col gap-2 md:flex-shrink-0">
+                      <button
+                        onClick={() => approveOne(p)}
+                        disabled={isBusy}
+                        className="flex-1 md:flex-none px-3 py-2 md:py-1 text-xs bg-jade-500 text-white rounded-md hover:bg-jade-600 disabled:opacity-50"
+                      >
+                        ✅ Approve
+                      </button>
+                      <button
+                        onClick={() => discardOne(p)}
+                        disabled={isBusy}
+                        className="flex-1 md:flex-none px-3 py-2 md:py-1 text-xs bg-vermillion-500 text-white rounded-md hover:bg-vermillion-600 disabled:opacity-50"
+                      >
+                        ❌ Discard
+                      </button>
+                    </div>
                   </div>
+                </div>
                 );
               })}
             </div>
