@@ -90,6 +90,14 @@ export default async function Dashboard() {
           </div>
           <p className="text-sm text-ink-500">Sentence practice with learned words</p>
         </a>
+
+        <a href="/converse" className="card-hover p-4 md:p-5 group">
+          <div className="flex items-center gap-3 mb-1 md:mb-2">
+            <span className="hanzi-display text-2xl text-indigo-500">话</span>
+            <h3 className="font-semibold text-ink-800">Converse</h3>
+          </div>
+          <p className="text-sm text-ink-500">Records of RP conversations</p>
+        </a>
       </div>
 
       {/* Today's activity */}
@@ -113,7 +121,7 @@ function DailyHanziCard() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-ink-800 mb-1">Daily Hanzi Practice</h3>
-          <p className="text-sm text-ink-500">15 characters sent to Telegram every morning</p>
+          <p className="text-sm text-ink-500">5 characters sent to Telegram every morning</p>
         </div>
         <span className="text-2xl hanzi-display text-vermillion-500">写</span>
       </div>
