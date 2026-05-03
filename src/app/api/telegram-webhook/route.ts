@@ -12,6 +12,7 @@ import {
 import {
   callConversationBot,
   getUserVocab,
+  getDistinctCategories,
   formatTurnForTelegram,
   formatEndSummary,
   processNewWords,
@@ -295,7 +296,7 @@ await sendTelegramMessage(
       },
     });
 
-    // Pull vocab
+// Pull vocab
     const vocabList = await getUserVocab();
 
     // Generate opening turn from Claude
@@ -376,10 +377,11 @@ const openingTurn: ConversationTurn = {
     convState.history.push(userTurn);
     convState.turnCount += 1;
 
-    // Call bot
+// Call bot
     let reply;
     try {
-      reply = await callConversationBot(topic, convState.vocabList, convState.history.slice(0, -1), text);
+      const categories = await getDistinctCategories();
+      reply = await callConversationBot(topic, convState.vocabList, convState.history.slice(0, -1), text, categories);
     } catch (e) {
       console.error('[converse] Reply generation failed:', e);
       // Roll back the user turn we just appended so retry works cleanly
