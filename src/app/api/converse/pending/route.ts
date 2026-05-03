@@ -13,14 +13,14 @@ export async function GET() {
 }
 
 // POST — approve a pending word: move it to Word table, then delete from PendingVocab
-// Body: { id: string, hanzi: string, pinyin: string, meaning: string }
+// Body: { id: string, hanzi: string, pinyin: string, meaning: string, category: string }
 export async function POST(req: Request) {
   const body = await req.json();
-  const { id, hanzi, pinyin, meaning } = body;
+  const { id, hanzi, pinyin, meaning, category } = body;
 
-  if (!id || !hanzi || !pinyin || !meaning) {
+  if (!id || !hanzi || !pinyin || !meaning || !category) {
     return NextResponse.json(
-      { error: 'Missing required fields: id, hanzi, pinyin, meaning' },
+      { error: 'Missing required fields: id, hanzi, pinyin, meaning, category' },
       { status: 400 }
     );
   }
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       hanzi,
       pinyin,
       meaning,
-      category: 'CONVERSATION',
+      category,
       status: 'LEARNING',
     },
   });
