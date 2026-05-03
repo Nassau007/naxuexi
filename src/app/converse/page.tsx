@@ -59,6 +59,8 @@ interface PendingVocab {
   createdAt: string;
 }
 
+type EditState = { pinyin: string; meaning: string; category: string };
+
 export default function ConversePage() {
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [selected, setSelected] = useState<SessionDetail | null>(null);
@@ -67,12 +69,9 @@ export default function ConversePage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
 
-  // Pending vocab state
   const [pending, setPending] = useState<PendingVocab[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [editing, setEditing] = useState
-    Record<string, { pinyin: string; meaning: string; category: string }>
-  >({});
+  const [editing, setEditing] = useState<Record<string, EditState>>({});
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -85,7 +84,7 @@ export default function ConversePage() {
         setSessions(sessData.sessions || []);
         setPending(pendData.pending || []);
         setCategories(catData.categories || []);
-        const seed: Record<string, { pinyin: string; meaning: string; category: string }> = {};
+        const seed: Record<string, EditState> = {};
         (pendData.pending || []).forEach((p: PendingVocab) => {
           seed[p.id] = {
             pinyin: p.pinyin,
@@ -141,7 +140,7 @@ export default function ConversePage() {
   async function approveOne(p: PendingVocab) {
     const edit = editing[p.id] || { pinyin: p.pinyin, meaning: p.meaning, category: p.category || '' };
     if (!edit.category) {
-      alert('Choisis une catégorie avant d\'approuver.');
+      alert('Choisis une catégorie avant d approuver.');
       return;
     }
     setBusy(p.id, true);
@@ -181,7 +180,6 @@ export default function ConversePage() {
   }
 
   async function approveAll() {
-    // Verify all pending words have a category set
     const missing = pending.filter(p => {
       const edit = editing[p.id];
       return !edit || !edit.category;
@@ -216,7 +214,6 @@ export default function ConversePage() {
           💬 Conversations
         </h1>
 
-        {/* Pending Review section */}
         {pending.length > 0 && (
           <div className="mb-8 bg-white rounded-lg border border-amber-300 p-4 md:p-6">
             <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
@@ -250,9 +247,7 @@ export default function ConversePage() {
                     key={p.id}
                     className="border border-ink-200 rounded-lg p-3 bg-ink-50"
                   >
-                    {/* Mobile: vertical stack. Desktop (md+): horizontal layout. */}
                     <div className="flex flex-col md:flex-row md:items-start md:gap-3">
-                      {/* Hanzi block */}
                       <div className="md:flex-shrink-0 md:min-w-[80px] mb-3 md:mb-0">
                         <div className="text-3xl md:text-2xl font-bold text-ink-900">{p.hanzi}</div>
                         <div className="text-[10px] text-ink-400 mt-1">
@@ -260,7 +255,6 @@ export default function ConversePage() {
                         </div>
                       </div>
 
-                      {/* Inputs */}
                       <div className="flex-1 min-w-0 space-y-2 mb-3 md:mb-0">
                         <div>
                           <label className="text-[10px] text-ink-500 uppercase tracking-wide">
@@ -317,7 +311,6 @@ export default function ConversePage() {
                                 {cat}
                               </option>
                             ))}
-                            {/* If Claude's suggestion isn't in the list (rare hallucination), still show it */}
                             {edit.category && !categories.includes(edit.category) && (
                               <option value={edit.category}>
                                 {edit.category} (new)
@@ -327,7 +320,6 @@ export default function ConversePage() {
                         </div>
                       </div>
 
-                      {/* Buttons: side-by-side on mobile, stacked on desktop */}
                       <div className="flex flex-row md:flex-col gap-2 md:flex-shrink-0">
                         <button
                           onClick={() => approveOne(p)}
@@ -363,7 +355,6 @@ export default function ConversePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Session list */}
             <div className="md:col-span-1 space-y-2">
               {sessions.map(s => (
                 <button
@@ -389,7 +380,6 @@ export default function ConversePage() {
               ))}
             </div>
 
-            {/* Session detail */}
             <div ref={detailRef} className="md:col-span-2">
               {!selectedId ? (
                 <div className="hidden md:block bg-white rounded-lg p-8 text-center text-ink-500">
