@@ -33,6 +33,7 @@ interface NewWord {
   hanzi: string;
   pinyin: string;
   meaning: string;
+  category?: string;
 }
 
 interface SessionDetail {
@@ -52,6 +53,7 @@ interface PendingVocab {
   hanzi: string;
   pinyin: string;
   meaning: string;
+  category: string | null;
   sourceSession: string;
   sourceTopic: string;
   createdAt: string;
@@ -67,21 +69,29 @@ export default function ConversePage() {
 
   // Pending vocab state
   const [pending, setPending] = useState<PendingVocab[]>([]);
-  const [editing, setEditing] = useState<Record<string, { pinyin: string; meaning: string }>>({});
+  const [categories, setCategories] = useState<string[]>([]);
+  const [editing, setEditing] = useState
+    Record<string, { pinyin: string; meaning: string; category: string }>
+  >({});
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     Promise.all([
       fetch('/api/converse/sessions').then(r => r.json()),
       fetch('/api/converse/pending').then(r => r.json()),
+      fetch('/api/categories').then(r => r.json()),
     ])
-      .then(([sessData, pendData]) => {
+      .then(([sessData, pendData, catData]) => {
         setSessions(sessData.sessions || []);
         setPending(pendData.pending || []);
-        // Seed editing state with current values
-        const seed: Record<string, { pinyin: string; meaning: string }> = {};
+        setCategories(catData.categories || []);
+        const seed: Record<string, { pinyin: string; meaning: string; category: string }> = {};
         (pendData.pending || []).forEach((p: PendingVocab) => {
-          seed[p.id] = { pinyin: p.pinyin, meaning: p.meaning };
+          seed[p.id] = {
+            pinyin: p.pinyin,
+            meaning: p.meaning,
+            category: p.category || '',
+          };
         });
         setEditing(seed);
         setLoading(false);
@@ -129,7 +139,11 @@ export default function ConversePage() {
   }
 
   async function approveOne(p: PendingVocab) {
-    const edit = editing[p.id] || { pinyin: p.pinyin, meaning: p.meaning };
+    const edit = editing[p.id] || { pinyin: p.pinyin, meaning: p.meaning, category: p.category || '' };
+    if (!edit.category) {
+      alert('Choisis une catégorie avant d\'approuver.');
+      return;
+    }
     setBusy(p.id, true);
     try {
       const res = await fetch('/api/converse/pending', {
@@ -140,6 +154,7 @@ export default function ConversePage() {
           hanzi: p.hanzi,
           pinyin: edit.pinyin,
           meaning: edit.meaning,
+          category: edit.category,
         }),
       });
       if (res.ok) {
@@ -166,6 +181,15 @@ export default function ConversePage() {
   }
 
   async function approveAll() {
+    // Verify all pending words have a category set
+    const missing = pending.filter(p => {
+      const edit = editing[p.id];
+      return !edit || !edit.category;
+    });
+    if (missing.length > 0) {
+      alert(`${missing.length} mot(s) n'ont pas de catégorie. Approuve-les un par un.`);
+      return;
+    }
     if (!confirm(`Approuver les ${pending.length} mots avec leurs valeurs actuelles ?`)) return;
     for (const p of pending) {
       await approveOne(p);
@@ -215,81 +239,113 @@ export default function ConversePage() {
 
             <div className="space-y-3">
               {pending.map(p => {
-                const edit = editing[p.id] || { pinyin: p.pinyin, meaning: p.meaning };
+                const edit = editing[p.id] || {
+                  pinyin: p.pinyin,
+                  meaning: p.meaning,
+                  category: p.category || '',
+                };
                 const isBusy = busyIds.has(p.id);
                 return (
-<div
-                  key={p.id}
-                  className="border border-ink-200 rounded-lg p-3 bg-ink-50"
-                >
-                  {/* Mobile: vertical stack. Desktop (md+): horizontal layout. */}
-                  <div className="flex flex-col md:flex-row md:items-start md:gap-3">
-
-                    {/* Hanzi block */}
-                    <div className="md:flex-shrink-0 md:min-w-[80px] mb-3 md:mb-0">
-                      <div className="text-3xl md:text-2xl font-bold text-ink-900">{p.hanzi}</div>
-                      <div className="text-[10px] text-ink-400 mt-1">
-                        {p.sourceTopic}
+                  <div
+                    key={p.id}
+                    className="border border-ink-200 rounded-lg p-3 bg-ink-50"
+                  >
+                    {/* Mobile: vertical stack. Desktop (md+): horizontal layout. */}
+                    <div className="flex flex-col md:flex-row md:items-start md:gap-3">
+                      {/* Hanzi block */}
+                      <div className="md:flex-shrink-0 md:min-w-[80px] mb-3 md:mb-0">
+                        <div className="text-3xl md:text-2xl font-bold text-ink-900">{p.hanzi}</div>
+                        <div className="text-[10px] text-ink-400 mt-1">
+                          {p.sourceTopic}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Inputs */}
-                    <div className="flex-1 min-w-0 space-y-2 mb-3 md:mb-0">
-                      <div>
-                        <label className="text-[10px] text-ink-500 uppercase tracking-wide">
-                          Pinyin
-                        </label>
-                        <input
-                          type="text"
-                          value={edit.pinyin}
-                          onChange={e =>
-                            setEditing(prev => ({
-                              ...prev,
-                              [p.id]: { ...edit, pinyin: e.target.value },
-                            }))
-                          }
+                      {/* Inputs */}
+                      <div className="flex-1 min-w-0 space-y-2 mb-3 md:mb-0">
+                        <div>
+                          <label className="text-[10px] text-ink-500 uppercase tracking-wide">
+                            Pinyin
+                          </label>
+                          <input
+                            type="text"
+                            value={edit.pinyin}
+                            onChange={e =>
+                              setEditing(prev => ({
+                                ...prev,
+                                [p.id]: { ...edit, pinyin: e.target.value },
+                              }))
+                            }
+                            disabled={isBusy}
+                            className="w-full text-sm px-2 py-1.5 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-500 uppercase tracking-wide">
+                            Meaning
+                          </label>
+                          <input
+                            type="text"
+                            value={edit.meaning}
+                            onChange={e =>
+                              setEditing(prev => ({
+                                ...prev,
+                                [p.id]: { ...edit, meaning: e.target.value },
+                              }))
+                            }
+                            disabled={isBusy}
+                            className="w-full text-sm px-2 py-1.5 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-500 uppercase tracking-wide">
+                            Category
+                          </label>
+                          <select
+                            value={edit.category}
+                            onChange={e =>
+                              setEditing(prev => ({
+                                ...prev,
+                                [p.id]: { ...edit, category: e.target.value },
+                              }))
+                            }
+                            disabled={isBusy}
+                            className="w-full text-sm px-2 py-1.5 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
+                          >
+                            <option value="">— Choose category —</option>
+                            {categories.map(cat => (
+                              <option key={cat} value={cat}>
+                                {cat}
+                              </option>
+                            ))}
+                            {/* If Claude's suggestion isn't in the list (rare hallucination), still show it */}
+                            {edit.category && !categories.includes(edit.category) && (
+                              <option value={edit.category}>
+                                {edit.category} (new)
+                              </option>
+                            )}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Buttons: side-by-side on mobile, stacked on desktop */}
+                      <div className="flex flex-row md:flex-col gap-2 md:flex-shrink-0">
+                        <button
+                          onClick={() => approveOne(p)}
                           disabled={isBusy}
-                          className="w-full text-sm px-2 py-1.5 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-ink-500 uppercase tracking-wide">
-                          Meaning
-                        </label>
-                        <input
-                          type="text"
-                          value={edit.meaning}
-                          onChange={e =>
-                            setEditing(prev => ({
-                              ...prev,
-                              [p.id]: { ...edit, meaning: e.target.value },
-                            }))
-                          }
+                          className="flex-1 md:flex-none px-3 py-2 md:py-1 text-xs bg-jade-500 text-white rounded-md hover:bg-jade-600 disabled:opacity-50"
+                        >
+                          ✅ Approve
+                        </button>
+                        <button
+                          onClick={() => discardOne(p)}
                           disabled={isBusy}
-                          className="w-full text-sm px-2 py-1.5 border border-ink-200 rounded bg-white focus:border-vermillion-400 focus:outline-none disabled:opacity-50"
-                        />
+                          className="flex-1 md:flex-none px-3 py-2 md:py-1 text-xs bg-vermillion-500 text-white rounded-md hover:bg-vermillion-600 disabled:opacity-50"
+                        >
+                          ❌ Discard
+                        </button>
                       </div>
-                    </div>
-
-                    {/* Buttons: side-by-side on mobile, stacked on desktop */}
-                    <div className="flex flex-row md:flex-col gap-2 md:flex-shrink-0">
-                      <button
-                        onClick={() => approveOne(p)}
-                        disabled={isBusy}
-                        className="flex-1 md:flex-none px-3 py-2 md:py-1 text-xs bg-jade-500 text-white rounded-md hover:bg-jade-600 disabled:opacity-50"
-                      >
-                        ✅ Approve
-                      </button>
-                      <button
-                        onClick={() => discardOne(p)}
-                        disabled={isBusy}
-                        className="flex-1 md:flex-none px-3 py-2 md:py-1 text-xs bg-vermillion-500 text-white rounded-md hover:bg-vermillion-600 disabled:opacity-50"
-                      >
-                        ❌ Discard
-                      </button>
                     </div>
                   </div>
-                </div>
                 );
               })}
             </div>
