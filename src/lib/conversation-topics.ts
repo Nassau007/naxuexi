@@ -45,11 +45,11 @@ export const CONVERSATION_TOPICS: ConversationTopic[] = [
     systemPrompt: 'You are a hotel front desk receptionist (前台). The user is checking in. Ask for their reservation, ID, payment method, room preferences. Be polite and professional.',
   },
   {
-    slug: 'doctor',
-    label: '看医生 — Visiting a doctor',
+    slug: 'Greetings',
+    label: '看医生 — Greetings & presentation',
     hanzi: '看医生',
-    description: 'Describe symptoms to a doctor',
-    systemPrompt: 'You are a doctor at a Chinese clinic. The user is your patient. Ask about symptoms, how long they\'ve been sick, what hurts. Use simple medical vocabulary appropriate for a learner.',
+    description: 'Introduce yourself',
+    systemPrompt: 'You are a person. The user is someone random tou see on the streets. Ask his name, where is he from etc. Use simple vocabulary appropriate for a learner.',
   },
   {
     slug: 'small_talk',
