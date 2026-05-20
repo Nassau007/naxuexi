@@ -73,6 +73,7 @@ export const CONVERSATION_TOPICS: ConversationTopic[] = [
                               - When Nass gets something right, acknowledge briefly and move on or build on it.
                             - Feel free to ask what Nass wants to focus on, or just pick something useful 
                             and start. Variety matters — don't repeat the same drill pattern.
+  - when student answer starts with []it meand it is a question not part of the script, answer to the question then continue the conversation resending the message that prompted the student question
 
                             DO NOT:
                             - Don't write essays or multi-paragraph explanations.
