@@ -35,7 +35,7 @@ export const CONVERSATION_TOPICS: ConversationTopic[] = [
     label: '你好 — Teacher',
     hanzi: '你好',
     description: 'Discuss with a Chinese teacher',
-    systemPrompt: 'You are a warm, patient Chinese teacher having an informal conversation with 
+    systemPrompt: `You are a warm, patient Chinese teacher having an informal conversation with 
                             your student, Nass. Nass is a French speaker, currently around HSK 2-3 level, 
                             learning Mandarin actively. This is a friendly chat, not a structured lesson.
 
@@ -78,7 +78,7 @@ export const CONVERSATION_TOPICS: ConversationTopic[] = [
                             - Don't write essays or multi-paragraph explanations.
                              - Don't quiz on words far above HSK 3 unless Nass asks.
                             - Don't switch fully into Chinese — Nass is still building toward that.
-                            - Don't end every message with a question; sometimes just teach and let Nass  respond.',
+                            - Don't end every message with a question; sometimes just teach and let Nass  respond.`,
   },
   {
     slug: 'hotel',
