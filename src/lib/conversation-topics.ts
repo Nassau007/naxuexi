@@ -31,7 +31,7 @@ export const CONVERSATION_TOPICS: ConversationTopic[] = [
     systemPrompt: 'You are a vendor at a Chinese market or clothing shop. Help the user find what they want, discuss size/color/price, and negotiate naturally. Use common shopping vocabulary.',
   },
   {
-    slug: '',
+    slug: 'teacher',
     label: '你好 — Teacher',
     hanzi: '你好',
     description: 'Discuss with a Chinese teacher',
