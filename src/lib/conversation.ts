@@ -215,9 +215,9 @@ No preamble, no markdown, no code fences. JSON only.`;
     throw new Error('Bot returned invalid JSON');
   }
 }
-
 export function formatTurnForTelegram(reply: BotResponse): string {
-  let msg = `${reply.reply_chinese}\n<i>${reply.reply_pinyin}</i>`;
+  let msg = `${reply.reply_chinese}\n<tg-spoiler><i>${reply.reply_pinyin}</i></tg-spoiler>`;
+
 
   if (reply.correction) {
     msg += `\n\n💡 <i>Quick note: "${reply.correction.mistake}" → "${reply.correction.correction}" — ${reply.correction.explanation}</i>`;
