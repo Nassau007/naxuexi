@@ -35,6 +35,17 @@ const hanziSession = new Map<number, { wordId: number; pinyin: string; hanzi: st
 // key = chatId, value = current recognize word + running score + wordId for SM-2
 const recognizeSession = new Map<number, { wordId: number; pinyin: string; hanzi: string; meaning: string; correct: number; total: number }>();
 
+// key = chatId, value = companion (pocket translator) state
+type CompanionState =
+  | { phase: 'awaiting_phrase' }
+  | { phase: 'awaiting_context'; phrase: string };
+const companionSession = new Map<number, CompanionState>();
+
+// --- Helper: escape user/AI text for Telegram HTML parse mode ---
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // key = chatId, value = conversation state
 type ConversationState =
   | { phase: 'awaiting_topic' }
@@ -439,6 +450,131 @@ const openingTurn: ConversationTurn = {
     await persistConversation(convState, false);
 
     await sendTelegramMessage(formatTurnForTelegram(reply), { parse_mode: 'HTML' });
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- /companion command — pocket translator (English/French → Chinese) ---
+  if (text === '/companion' || text.startsWith('/companion ')) {
+    const phrase = text.slice('/companion'.length).trim();
+
+    if (!phrase) {
+      companionSession.set(chatId, { phase: 'awaiting_phrase' });
+      await sendTelegramMessage(
+        `🗣️ <b>Companion — pocket translator</b>\n\n` +
+          `What would you like to say in Chinese? Type it below (English or French).\n\n` +
+          `Tip: next time you can send it in one go, e.g.\n<code>/companion where is the station?</code>`,
+        { parse_mode: 'HTML' }
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    companionSession.set(chatId, { phase: 'awaiting_context', phrase });
+    await sendTelegramMessage(
+      `🗣️ <b>"${escapeHtml(phrase)}"</b>\n\n` +
+        `Quick context so I get it right — who are you talking to / what's the situation?\n\n` +
+        `e.g. <i>a friend</i>, <i>a shopkeeper</i>, <i>formal / business</i>, <i>texting</i>…\n` +
+        `Or just reply <b>skip</b>.`,
+      { parse_mode: 'HTML' }
+    );
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- Companion: awaiting phrase (user sent /companion with no text) ---
+  const companionState = companionSession.get(chatId);
+  if (companionState && companionState.phase === 'awaiting_phrase' && !text.startsWith('/')) {
+    companionSession.set(chatId, { phase: 'awaiting_context', phrase: text });
+    await sendTelegramMessage(
+      `🗣️ <b>"${escapeHtml(text)}"</b>\n\n` +
+        `Quick context so I get it right — who are you talking to / what's the situation?\n\n` +
+        `e.g. <i>a friend</i>, <i>a shopkeeper</i>, <i>formal / business</i>, <i>texting</i>…\n` +
+        `Or just reply <b>skip</b>.`,
+      { parse_mode: 'HTML' }
+    );
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- Companion: awaiting context → produce translation ---
+  if (companionState && companionState.phase === 'awaiting_context' && !text.startsWith('/')) {
+    const phrase = companionState.phrase;
+    const skipped = /^skip$/i.test(text.trim());
+    const context = skipped
+      ? 'No specific context given — give a neutral, generally usable version.'
+      : text.trim();
+    companionSession.delete(chatId);
+
+    const prompt = `You are a pocket translator helping a Chinese learner (around HSK 2-3) say something in Mandarin Chinese.
+
+The learner wants to say: "${phrase}"
+Context: ${context}
+
+Give the most natural way to say this in Mandarin for that context, plus 1-2 alternatives for different registers or phrasings when useful. Keep it appropriate for a learner — natural but not overly advanced. Use simplified characters. Pinyin must include tone marks.
+
+Respond ONLY with JSON (no markdown):
+{
+  "primary": { "hanzi": "...", "pinyin": "...", "gloss": "brief word-for-word literal gloss in English" },
+  "alternatives": [
+    { "hanzi": "...", "pinyin": "...", "note": "when/why to use this one (e.g. more formal, more casual, regional)" }
+  ],
+  "notes": "1-2 sentence usage tip: register, a common mistake, or a French/English sound-alike mnemonic if one fits. May be empty."
+}`;
+
+    let result: any = null;
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY!,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 600,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const raw = data.content?.[0]?.text || '';
+        const clean = raw.replace(/```json|```/g, '').trim();
+        result = JSON.parse(clean);
+      }
+    } catch (e) {
+      console.error('[companion] Translation error:', e);
+    }
+
+    if (!result || !result.primary || !result.primary.hanzi) {
+      await sendTelegramMessage(
+        '❌ Could not get a translation. Send /companion to try again.',
+        { parse_mode: 'HTML' }
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    let out = `🗣️ <b>"${escapeHtml(phrase)}"</b>\n`;
+    if (!skipped) {
+      out += `<i>${escapeHtml(context)}</i>\n`;
+    }
+    out += `\n<b>${result.primary.hanzi}</b>\n${result.primary.pinyin || ''}`;
+    if (result.primary.gloss) {
+      out += `\n<i>${escapeHtml(result.primary.gloss)}</i>`;
+    }
+
+    if (Array.isArray(result.alternatives) && result.alternatives.length > 0) {
+      out += `\n\n<b>Alternatives:</b>`;
+      for (const alt of result.alternatives) {
+        if (!alt?.hanzi) continue;
+        out += `\n• ${alt.hanzi} — ${alt.pinyin || ''}`;
+        if (alt.note) out += ` <i>(${escapeHtml(alt.note)})</i>`;
+      }
+    }
+
+    if (result.notes) {
+      out += `\n\n💡 <i>${escapeHtml(result.notes)}</i>`;
+    }
+
+    await sendTelegramMessage(out, { parse_mode: 'HTML' });
     return NextResponse.json({ ok: true });
   }
 
