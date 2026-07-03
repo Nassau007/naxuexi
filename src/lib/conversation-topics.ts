@@ -86,8 +86,7 @@ export const CONVERSATION_TOPICS: ConversationTopic[] = [
     label: '酒店 — Hotel check-in',
     hanzi: '酒店',
     description: 'Check into a hotel',
-    systemPrompt: 'You speak Italian. introduce yourself and talk in
-Italian with user',
+    systemPrompt: 'You work at the front desk of an hotel, Welcome the guest who arrives',
   },
   {
     slug: 'Greetings',
