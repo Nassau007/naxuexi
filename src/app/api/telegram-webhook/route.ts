@@ -528,8 +528,7 @@ const openingTurn: ConversationTurn = {
       companionSession.set(chatId, { phase: 'awaiting_phrase' });
       await sendTelegramMessage(
         `🗣️ <b>Companion — pocket translator</b>\n\n` +
-          `What do you want to say? Type it below (English or French) and I'll give you the natural Mandarin for the 2 most likely situations.\n\n` +
-          `Tip: next time send it in one go, e.g.\n<code>/companion is this dish spicy?</code>`,
+          `What do you want to say? Type it below (English or French) and I'll give you the natural Mandarin for the 2 most likely situations.`,
         { parse_mode: 'HTML' }
       );
       return NextResponse.json({ ok: true });
