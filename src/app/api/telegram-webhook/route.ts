@@ -1,4 +1,4 @@
-// src/app/api/telegram-webhook/route.ts
+ // src/app/api/telegram-webhook/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendTelegramMessage } from '@/lib/telegram';
