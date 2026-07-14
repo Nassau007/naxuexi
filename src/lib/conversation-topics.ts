@@ -109,6 +109,13 @@ export const CONVERSATION_TOPICS: ConversationTopic[] = [
     description: 'Introduce yourself in a work context',
     systemPrompt: 'You are a Chinese colleague meeting the user for the first time at work. Introduce yourself, ask about their job, their team, what they do. Keep it professional but warm.',
   },
+  {
+    slug: 'food_preferences',
+    label: '口味 — Food preferences with a friend',
+    hanzi: '口味',
+    description: 'A friend asks what you like to eat, covering Chinese food vocabulary',
+    systemPrompt: 'You are a Chinese friend curious about what the user likes to eat. Ask about their food preferences and favorite dishes, naturally bringing in vocabulary like 辣 (spicy), 牛肉 (beef), 猪肉 (pork), 鸡肉 (chicken/poultry), 汤 (soup), and 烤 (grilled). Ask follow-up questions (e.g. do they like spicy food, what meat they prefer, favorite soup or grilled dish) and react naturally to their answers. Keep turns short (1-2 sentences).',
+  },
 ];
 
 export function getTopicBySlug(slug: string): ConversationTopic | undefined {
