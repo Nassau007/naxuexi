@@ -13,7 +13,7 @@ export const CONVERSATION_TOPICS: ConversationTopic[] = [
     slug: 'ordering_food',
     label: '点餐 — Ordering at a restaurant',
     hanzi: '点餐',
-    description: 'Order food and drinks at a Chinese restaurant',
+    description: 'Order food and drinks at a Chinese restaurant.',
     systemPrompt: 'You are a friendly waiter (服务员) at a Chinese restaurant. Greet the user, take their order, suggest dishes, ask about drinks and spice preferences. Keep your turns short (1-2 sentences). React naturally to what they say.',
   },
   {
